@@ -4,6 +4,7 @@ import com.wood.worker.dto.GalleryItemDto;
 import com.wood.worker.model.GalleryItem;
 import com.wood.worker.repository.GalleryItemRepository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +22,7 @@ public class GalleryController {
         this.repository = repository;
     }
 
+    @Transactional(readOnly = true)
     @GetMapping
     public List<GalleryItemDto> list() {
         return repository.findAllByPublishedTrueOrderBySortOrderAscCreatedAtDesc()
@@ -29,6 +31,7 @@ public class GalleryController {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     @GetMapping("/{id}")
     public ResponseEntity<GalleryItemDto> get(@PathVariable Long id) {
         return repository.findById(id)
