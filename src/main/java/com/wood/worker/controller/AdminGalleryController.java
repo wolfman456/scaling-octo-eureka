@@ -8,6 +8,7 @@ import com.wood.worker.repository.GalleryItemRepository;
 import com.wood.worker.service.MediaStorageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,6 +32,7 @@ public class AdminGalleryController {
         this.storageService = storageService;
     }
 
+    @Transactional
     @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<GalleryItemDto> create(@RequestPart("item") GalleryItemForm form,
                                                  @RequestPart(value = "image", required = false) MultipartFile image) {
@@ -43,6 +45,7 @@ public class AdminGalleryController {
         return ResponseEntity.status(HttpStatus.CREATED).body(GalleryItemDto.from(saved));
     }
 
+    @Transactional
     @PutMapping(path = "/{id}", consumes = "multipart/form-data")
     public ResponseEntity<GalleryItemDto> update(@PathVariable Long id,
                                                  @RequestPart("item") GalleryItemForm form,
@@ -59,6 +62,7 @@ public class AdminGalleryController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @Transactional
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         return repository.findById(id)
