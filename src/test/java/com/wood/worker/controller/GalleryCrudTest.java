@@ -71,6 +71,26 @@ public class GalleryCrudTest {
     }
 
     @Test
+    void adminListIncludesUnpublished() throws Exception {
+        createItem(Map.of("title", "Hidden", "published", false));
+        createItem(Map.of("title", "Shown", "published", true));
+        MvcResult result = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/admin/gallery")
+                        .header(HttpHeaders.AUTHORIZATION, TestSupport.basicAuth()))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode list = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertEquals(2, list.size());
+    }
+
+    @Test
+    void adminListRequiresAuthentication() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/admin/gallery"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void createWithCategoryAndMediaShowsInPublicList() throws Exception {
         JsonNode photo = uploadPhoto();
         long categoryId = createCategory();
