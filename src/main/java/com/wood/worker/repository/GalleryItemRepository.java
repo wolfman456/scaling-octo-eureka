@@ -11,6 +11,8 @@ public interface GalleryItemRepository extends JpaRepository<GalleryItem, Long> 
 
     List<GalleryItem> findAllByPublishedTrueOrderBySortOrderAscCreatedAtDesc();
 
+    List<GalleryItem> findAllByOrderBySortOrderAscCreatedAtDesc();
+
     long countByCategoryId(Long categoryId);
 
     @Query("select i from GalleryItem i join i.media m where m.id = :mediaId")
