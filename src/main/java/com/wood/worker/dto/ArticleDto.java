@@ -15,14 +15,18 @@ public record ArticleDto(
         Instant publishedAt,
         Instant createdAt,
         String featuredImage,
-        List<String> images) {
+        Long featuredMediaId,
+        List<String> images,
+        List<Long> mediaIds) {
 
     public static ArticleDto from(Article article) {
         List<String> images = article.getMedia().stream()
                 .map(media -> "/uploads/" + media.getStoredName())
                 .toList();
+        List<Long> mediaIds = article.getMedia().stream()
+                .map(MediaAsset::getId)
+                .toList();
         MediaAsset featured = article.getFeaturedMedia();
-        String featuredImage = featured == null ? null : "/uploads/" + featured.getStoredName();
         return new ArticleDto(
                 article.getId(),
                 article.getTitle(),
@@ -31,7 +35,9 @@ public record ArticleDto(
                 article.getPublished(),
                 article.getPublishedAt(),
                 article.getCreatedAt(),
-                featuredImage,
-                images);
+                featured == null ? null : "/uploads/" + featured.getStoredName(),
+                featured == null ? null : featured.getId(),
+                images,
+                mediaIds);
     }
 }
