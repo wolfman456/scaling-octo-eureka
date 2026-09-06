@@ -1,5 +1,6 @@
 package com.wood.worker.controller;
 
+import com.wood.worker.TestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -11,7 +12,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:gallerytest;DB_CLOSE_DELAY=-1;MODE=LEGACY",
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "app.upload-dir=target/test-uploads",
+        "app.admin.user=admin",
+        "app.admin.password=test"
+})
 @AutoConfigureMockMvc
 class GalleryControllerTest {
 

@@ -9,7 +9,8 @@ public record GalleryItemDto(
         Long id,
         String title,
         String description,
-        String category,
+        Long categoryId,
+        String categoryName,
         Integer sortOrder,
         Boolean published,
         Instant createdAt,
@@ -18,13 +19,13 @@ public record GalleryItemDto(
     public static GalleryItemDto from(GalleryItem item) {
         List<String> images = item.getMedia().stream()
                 .map(media -> "/uploads/" + media.getStoredName())
-                .sorted()
                 .toList();
         return new GalleryItemDto(
                 item.getId(),
                 item.getTitle(),
                 item.getDescription(),
-                item.getCategory(),
+                item.getCategory() == null ? null : item.getCategory().getId(),
+                item.getCategory() == null ? null : item.getCategory().getName(),
                 item.getSortOrder(),
                 item.getPublished(),
                 item.getCreatedAt(),

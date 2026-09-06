@@ -17,8 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "gallery_item")
-public class GalleryItem {
+@Table(name = "article")
+public class Article {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,17 +27,20 @@ public class GalleryItem {
     @Column(nullable = false, length = 200)
     private String title;
 
-    @Column(length = 2000)
-    private String description;
+    @Column(nullable = false, length = 200)
+    private String slug;
+
+    @Column(name = "body_md", length = 20000)
+    private String bodyMd;
 
     @ManyToOne
-    @JoinColumn(name = "category_id")
-    private Category category;
+    @JoinColumn(name = "featured_media_id")
+    private MediaAsset featuredMedia;
 
-    @Column(name = "sort_order")
-    private Integer sortOrder = 0;
+    private Boolean published = false;
 
-    private Boolean published = true;
+    @Column(name = "published_at")
+    private Instant publishedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
@@ -46,8 +49,8 @@ public class GalleryItem {
     private Instant updatedAt;
 
     @ManyToMany
-    @JoinTable(name = "item_media",
-            joinColumns = @JoinColumn(name = "item_id"),
+    @JoinTable(name = "article_media",
+            joinColumns = @JoinColumn(name = "article_id"),
             inverseJoinColumns = @JoinColumn(name = "media_id"))
     @OrderBy("sortOrder ASC")
     private List<MediaAsset> media = new ArrayList<>();
@@ -64,28 +67,28 @@ public class GalleryItem {
         this.title = title;
     }
 
-    public String getDescription() {
-        return description;
+    public String getSlug() {
+        return slug;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public void setSlug(String slug) {
+        this.slug = slug;
     }
 
-    public Category getCategory() {
-        return category;
+    public String getBodyMd() {
+        return bodyMd;
     }
 
-    public void setCategory(Category category) {
-        this.category = category;
+    public void setBodyMd(String bodyMd) {
+        this.bodyMd = bodyMd;
     }
 
-    public Integer getSortOrder() {
-        return sortOrder;
+    public MediaAsset getFeaturedMedia() {
+        return featuredMedia;
     }
 
-    public void setSortOrder(Integer sortOrder) {
-        this.sortOrder = sortOrder == null ? 0 : sortOrder;
+    public void setFeaturedMedia(MediaAsset featuredMedia) {
+        this.featuredMedia = featuredMedia;
     }
 
     public Boolean getPublished() {
@@ -94,6 +97,14 @@ public class GalleryItem {
 
     public void setPublished(Boolean published) {
         this.published = Boolean.TRUE.equals(published);
+    }
+
+    public Instant getPublishedAt() {
+        return publishedAt;
+    }
+
+    public void setPublishedAt(Instant publishedAt) {
+        this.publishedAt = publishedAt;
     }
 
     public Instant getCreatedAt() {

@@ -21,7 +21,11 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/gallery", "/api/gallery/**", "/uploads/**", "/h2-console/**").permitAll()
+                        .requestMatchers("/api/gallery", "/api/gallery/**",
+                                "/api/categories", "/api/categories/**",
+                                "/api/articles", "/api/articles/**",
+                                "/api/settings",
+                                "/uploads/**", "/h2-console/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
