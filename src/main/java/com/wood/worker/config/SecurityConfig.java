@@ -21,10 +21,13 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/gallery", "/api/gallery/**",
+                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.svg",
+                                "/api/gallery", "/api/gallery/**",
                                 "/api/categories", "/api/categories/**",
                                 "/api/articles", "/api/articles/**",
                                 "/api/settings",
+                                "/articles", "/articles/**",
+                                "/contact", "/admin",
                                 "/uploads/**", "/h2-console/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
