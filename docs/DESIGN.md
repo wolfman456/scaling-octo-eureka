@@ -96,7 +96,7 @@ Public (no auth):
 - `GET /api/articles/{slug}` → full article (`bodyMd`, `featuredImage`, `images`)
 - `GET /api/settings` → `{ siteTitle, backgroundMediaId, backgroundImage, contactEmail, etsyUrl, instagramUrl, facebookUrl }`; `backgroundImage` resolves the stored media to `/uploads/<name>`
 
-Admin (basic auth, `ADMIN_USER`/`ADMIN_PASSWORD` env, role `ADMIN`):
+Admin (basic auth, seeded on first boot from `ADMIN_USER`/`ADMIN_PASSWORD` env, fallbacks `bloodwolf`/`NeedToChange`, stored in the DB afterwards, role `ADMIN`):
 - Media library
   - `GET /api/admin/media` → list (newest first)
   - `POST /api/admin/media` multipart `file` → 201 asset
@@ -115,6 +115,8 @@ Admin (basic auth, `ADMIN_USER`/`ADMIN_PASSWORD` env, role `ADMIN`):
 - Settings
   - `GET /api/admin/settings` → current settings
   - `PUT /api/admin/settings` JSON → merges only non-null fields; empty string clears the key
+- Account
+  - `POST /api/admin/change-password` JSON: currentPassword, newPassword (min 8 chars) → 200 `{ username }`; 400 `{ error }` if the current password is wrong or the new one is too short; the new password takes effect on the next request
 
 ## Slug generation
 
