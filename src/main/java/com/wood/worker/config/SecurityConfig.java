@@ -1,6 +1,6 @@
 package com.wood.worker.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.wood.worker.repository.AdminUserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -9,7 +9,9 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -37,9 +39,17 @@ public class SecurityConfig {
     }
 
     @Bean
-    UserDetailsService userDetailsService(@Value("${app.admin.user}") String username,
-                                          @Value("${app.admin.password}") String password) {
-        return new InMemoryUserDetailsManager(
-                User.withUsername(username).password("{noop}" + password).roles("ADMIN").build());
+    UserDetailsService userDetailsService(AdminUserRepository users) {
+        return username -> users.findByUsername(username)
+                .map(user -> User.withUsername(user.getUsername())
+                        .password(user.getPasswordHash())
+                        .roles("ADMIN")
+                        .build())
+                .orElseThrow(() -> new UsernameNotFoundException(username));
+    }
+
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }
