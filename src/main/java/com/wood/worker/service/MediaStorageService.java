@@ -46,6 +46,14 @@ public class MediaStorageService {
         }
     }
 
+    public byte[] readBytes(String storedName) {
+        try {
+            return Files.readAllBytes(uploadDir.resolve(storedName));
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to read stored file " + storedName, e);
+        }
+    }
+
     private boolean isVideo(MultipartFile file) {
         String contentType = file.getContentType();
         if (contentType != null) {
