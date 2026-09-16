@@ -35,3 +35,8 @@ build/
 ### Runtime content (admin-uploaded / generated, never commit) ###
 /data/
 /uploads/
+
+### Secrets (never commit) ###
+.env
+.env.*
+!.env.example

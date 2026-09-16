@@ -5,3 +5,5 @@ uploads/
 .idea/
 *.iml
 .vscode/
+.env
+.env.*
