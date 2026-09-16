@@ -12,6 +12,7 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MediaStorageServiceTest {
@@ -100,6 +101,25 @@ class MediaStorageServiceTest {
     @Test
     void deleteMissingFileIsNoop() {
         service.delete("does-not-exist.jpg");
+    }
+
+    @Test
+    void constructorFailsWhenDirectoryCannotBeCreated() throws IOException {
+        Path file = Files.createFile(tempDir.resolve("not-a-dir"));
+        assertThrows(IllegalStateException.class,
+                () -> new MediaStorageService(file.resolve("sub").toString()));
+    }
+
+    @Test
+    void constructorFailsWhenDirectoryIsNotWritable() throws IOException {
+        Path readOnly = Files.createDirectories(tempDir.resolve("read-only"));
+        readOnly.toFile().setWritable(false);
+        try {
+            assertThrows(IllegalStateException.class,
+                    () -> new MediaStorageService(readOnly.toString()));
+        } finally {
+            readOnly.toFile().setWritable(true);
+        }
     }
 
     private static byte[] PNG() {
