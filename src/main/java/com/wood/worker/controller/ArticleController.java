@@ -33,7 +33,7 @@ public class ArticleController {
     @GetMapping("/{slug}")
     @Transactional(readOnly = true)
     public ResponseEntity<ArticleDto> get(@PathVariable String slug) {
-        return articles.findBySlugAndPublishedTrue(slug)
+        return articles.findFirstBySlugAndPublishedTrue(slug)
                 .map(article -> ResponseEntity.ok(ArticleDto.from(article)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }

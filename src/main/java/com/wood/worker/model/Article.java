@@ -27,7 +27,7 @@ public class Article {
     @Column(nullable = false, length = 200)
     private String title;
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, unique = true, length = 200)
     private String slug;
 
     @Column(name = "body_md", length = 20000)
