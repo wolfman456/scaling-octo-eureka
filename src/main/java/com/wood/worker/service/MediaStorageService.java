@@ -19,11 +19,18 @@ public class MediaStorageService {
 
     public MediaStorageService(@Value("${app.upload-dir}") String uploadDir) {
         this.uploadDir = Paths.get(uploadDir).toAbsolutePath().normalize();
+        try {
+            Files.createDirectories(this.uploadDir);
+        } catch (IOException e) {
+            throw new IllegalStateException("Upload directory cannot be created: " + this.uploadDir, e);
+        }
+        if (!Files.isWritable(this.uploadDir)) {
+            throw new IllegalStateException("Upload directory is not writable: " + this.uploadDir);
+        }
     }
 
     public MediaAsset store(MultipartFile file, int sortOrder) {
         try {
-            Files.createDirectories(uploadDir);
             String storedName = UUID.randomUUID() + extension(file.getOriginalFilename());
             file.transferTo(uploadDir.resolve(storedName));
 

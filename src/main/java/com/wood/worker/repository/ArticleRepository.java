@@ -13,7 +13,7 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
 
     List<Article> findAllByPublishedTrueOrderByCreatedAtDesc();
 
-    Optional<Article> findBySlugAndPublishedTrue(String slug);
+    Optional<Article> findFirstBySlugAndPublishedTrue(String slug);
 
     boolean existsBySlug(String slug);
 
