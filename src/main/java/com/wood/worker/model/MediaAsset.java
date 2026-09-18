@@ -26,6 +26,9 @@ public class MediaAsset {
     @Column(name = "stored_name", nullable = false, length = 255)
     private String storedName;
 
+    @Column(name = "thumbnail_name", length = 255)
+    private String thumbnailName;
+
     @Column(name = "content_type", length = 100)
     private String contentType;
 
@@ -58,6 +61,14 @@ public class MediaAsset {
 
     public void setStoredName(String storedName) {
         this.storedName = storedName;
+    }
+
+    public String getThumbnailName() {
+        return thumbnailName;
+    }
+
+    public void setThumbnailName(String thumbnailName) {
+        this.thumbnailName = thumbnailName;
     }
 
     public String getContentType() {

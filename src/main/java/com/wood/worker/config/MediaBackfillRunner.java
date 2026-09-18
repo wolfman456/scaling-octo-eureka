@@ -3,6 +3,7 @@ package com.wood.worker.config;
 import com.wood.worker.model.MediaAsset;
 import com.wood.worker.repository.MediaAssetRepository;
 import com.wood.worker.service.ImageProcessingService;
+import com.wood.worker.service.MediaStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -71,26 +72,38 @@ public class MediaBackfillRunner {
 
     private boolean optimize(MediaAsset asset) {
         Path display = uploadDir.resolve(asset.getStoredName());
-        if (!imageProcessing.needsProcessing(display)) {
+        if (!Files.isRegularFile(display)) {
             return false;
         }
+        boolean changed = false;
         try {
-            Files.createDirectories(originalDir);
-            Path original = originalDir.resolve(asset.getStoredName());
-            if (!Files.exists(original)) {
-                Files.copy(display, original, StandardCopyOption.COPY_ATTRIBUTES);
+            if (imageProcessing.needsProcessing(display)) {
+                Files.createDirectories(originalDir);
+                Path original = originalDir.resolve(asset.getStoredName());
+                if (!Files.exists(original)) {
+                    Files.copy(display, original, StandardCopyOption.COPY_ATTRIBUTES);
+                }
+                Optional<ImageProcessingService.ProcessedImage> processed =
+                        imageProcessing.downscale(original, display);
+                if (processed.isPresent()) {
+                    asset.setSizeBytes(processed.get().sizeBytes());
+                    changed = true;
+                }
             }
-            Optional<ImageProcessingService.ProcessedImage> processed =
-                    imageProcessing.downscale(original, display);
-            if (processed.isEmpty()) {
-                return false;
+            if (asset.getThumbnailName() == null && imageProcessing.isSupported(display)) {
+                String thumbName = MediaStorageService.thumbnailName(asset.getStoredName());
+                if (imageProcessing.thumbnail(display, uploadDir.resolve(thumbName)).isPresent()) {
+                    asset.setThumbnailName(thumbName);
+                    changed = true;
+                }
             }
-            asset.setSizeBytes(processed.get().sizeBytes());
-            media.save(asset);
-            return true;
         } catch (IOException e) {
             log.warn("Failed to optimize media asset {}: {}", asset.getId(), e.getMessage());
             return false;
         }
+        if (changed) {
+            media.save(asset);
+        }
+        return changed;
     }
 }

@@ -15,6 +15,8 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,7 +30,7 @@ class MediaStorageServiceTest {
     @BeforeEach
     void setUp() {
         service = new MediaStorageService(tempDir.toString(), originals().toString(),
-                new ImageProcessingService(2000, 0.82));
+                new ImageProcessingService(2000, 480, 0.82));
     }
 
     private MediaAsset store(String filename, String contentType, byte[] content) {
@@ -152,6 +154,61 @@ class MediaStorageServiceTest {
     }
 
     @Test
+    void generatesThumbnailForLargeJpeg() throws IOException {
+        MediaAsset asset = store("big.jpg", "image/jpeg", TestImages.jpeg(4000, 3000));
+
+        String thumbName = asset.getThumbnailName();
+        assertNotNull(thumbName);
+        assertEquals(MediaStorageService.thumbnailName(asset.getStoredName()), thumbName);
+        Path thumbnail = tempDir.resolve(thumbName);
+        assertTrue(Files.exists(thumbnail));
+        BufferedImage scaled = ImageIO.read(thumbnail.toFile());
+        assertEquals(480, Math.max(scaled.getWidth(), scaled.getHeight()));
+    }
+
+    @Test
+    void generatesThumbnailForSmallJpegToo() throws IOException {
+        MediaAsset asset = store("small.jpg", "image/jpeg", TestImages.jpeg(800, 600));
+
+        assertNotNull(asset.getThumbnailName());
+        assertTrue(Files.exists(tempDir.resolve(asset.getThumbnailName())));
+    }
+
+    @Test
+    void skipsThumbnailForTinyJpeg() throws IOException {
+        MediaAsset asset = store("tiny.jpg", "image/jpeg", TestImages.jpeg(300, 200));
+
+        assertNull(asset.getThumbnailName());
+    }
+
+    @Test
+    void skipsThumbnailForNonJpeg() {
+        MediaAsset asset = store("photo.png", "image/png", PNG());
+
+        assertNull(asset.getThumbnailName());
+    }
+
+    @Test
+    void deleteRemovesThumbnailToo() throws IOException {
+        MediaAsset asset = store("with-thumb.jpg", "image/jpeg", TestImages.jpeg(1200, 900));
+        String thumbName = asset.getThumbnailName();
+        assertNotNull(thumbName);
+        assertTrue(Files.exists(tempDir.resolve(thumbName)));
+
+        service.delete(asset);
+
+        assertFalse(Files.exists(tempDir.resolve(asset.getStoredName())));
+        assertFalse(Files.exists(tempDir.resolve(thumbName)));
+        assertFalse(Files.exists(originals().resolve(asset.getStoredName())));
+    }
+
+    @Test
+    void thumbnailNameHandlesDotlessNames() {
+        assertEquals("abc_thumb.jpg", MediaStorageService.thumbnailName("abc.jpg"));
+        assertEquals("abc_thumb", MediaStorageService.thumbnailName("abc"));
+    }
+
+    @Test
     void leavesVideoUntouched() {
         byte[] content = TestImages.jpeg(4000, 3000);
         MediaAsset asset = store("clip.mp4", "video/mp4", content);
@@ -179,7 +236,7 @@ class MediaStorageServiceTest {
     }
 
     private static ImageProcessingService processor() {
-        return new ImageProcessingService(2000, 0.82);
+        return new ImageProcessingService(2000, 480, 0.82);
     }
 
     private static byte[] PNG() {

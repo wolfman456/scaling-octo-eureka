@@ -24,12 +24,15 @@ import java.util.Optional;
 public class ImageProcessingService {
 
     private final int maxDimension;
+    private final int thumbDimension;
     private final double quality;
 
     public ImageProcessingService(
             @Value("${app.image.max-dimension:2000}") int maxDimension,
+            @Value("${app.image.thumb-dimension:480}") int thumbDimension,
             @Value("${app.image.quality:0.82}") double quality) {
         this.maxDimension = maxDimension;
+        this.thumbDimension = thumbDimension;
         this.quality = quality;
     }
 
@@ -43,8 +46,12 @@ public class ImageProcessingService {
      * maximum. Missing, unreadable or unsupported files are never processed.
      */
     public boolean needsProcessing(Path file) {
+        return exceeds(file, maxDimension);
+    }
+
+    private boolean exceeds(Path file, int maxEdge) {
         return readSize(file)
-                .map(size -> Math.max(size.width(), size.height()) > maxDimension)
+                .map(size -> Math.max(size.width(), size.height()) > maxEdge)
                 .orElse(false);
     }
 
@@ -78,7 +85,19 @@ public class ImageProcessingService {
      * into place. Returns empty when no processing is needed or the source cannot be read.
      */
     public Optional<ProcessedImage> downscale(Path source, Path target) {
-        if (!needsProcessing(source)) {
+        return resize(source, target, maxDimension);
+    }
+
+    /**
+     * Writes a small grid-sized JPEG to {@code target}, used by gallery/blog thumbnails.
+     * Returns empty when the source is not a JPEG larger than the thumbnail edge.
+     */
+    public Optional<ProcessedImage> thumbnail(Path source, Path target) {
+        return resize(source, target, thumbDimension);
+    }
+
+    private Optional<ProcessedImage> resize(Path source, Path target, int maxEdge) {
+        if (!exceeds(source, maxEdge)) {
             return Optional.empty();
         }
         Path temp = null;
@@ -87,7 +106,7 @@ public class ImageProcessingService {
             Files.createDirectories(parent);
             temp = Files.createTempFile(parent, "img-opt-", ".jpg");
             Thumbnails.of(source.toFile())
-                    .size(maxDimension, maxDimension)
+                    .size(maxEdge, maxEdge)
                     .keepAspectRatio(true)
                     .useExifOrientation(true)
                     .outputFormat("jpg")

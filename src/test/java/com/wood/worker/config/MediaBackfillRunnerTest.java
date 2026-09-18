@@ -17,6 +17,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MediaBackfillRunnerTest {
@@ -48,12 +49,27 @@ class MediaBackfillRunnerTest {
         assertEquals(2000, ImageIO.read(tempDir.resolve("big.jpg").toFile()).getWidth());
         assertEquals(Files.size(tempDir.resolve("big.jpg")), asset.getSizeBytes());
         assertTrue(Files.exists(tempDir.resolve("originals").resolve("big.jpg")));
+        assertNotNull(asset.getThumbnailName());
+        assertTrue(Files.exists(tempDir.resolve(asset.getThumbnailName())));
     }
 
     @Test
-    void skipsAssetsAlreadyWithinBounds() throws Exception {
+    void generatesThumbnailForImageAlreadyWithinBounds() throws Exception {
         MediaAsset asset = asset("small.jpg");
         Files.write(tempDir.resolve("small.jpg"), TestImages.jpeg(800, 600));
+
+        assertEquals(1, runnerFor(List.of(asset)).backfill());
+
+        assertEquals(List.of(asset), saved);
+        assertNotNull(asset.getThumbnailName());
+        assertTrue(Files.exists(tempDir.resolve(asset.getThumbnailName())));
+        assertEquals(9_000_000L, asset.getSizeBytes());
+    }
+
+    @Test
+    void ignoresNonJpegAssets() throws Exception {
+        MediaAsset asset = asset("photo.png");
+        Files.write(tempDir.resolve("photo.png"), new byte[] {1, 2, 3, 4});
 
         assertEquals(0, runnerFor(List.of(asset)).backfill());
         assertTrue(saved.isEmpty());
@@ -123,7 +139,7 @@ class MediaBackfillRunnerTest {
     }
 
     private static ImageProcessingService processor() {
-        return new ImageProcessingService(2000, 0.82);
+        return new ImageProcessingService(2000, 480, 0.82);
     }
 
     private MediaAssetRepository repository(List<MediaAsset> assets) {
