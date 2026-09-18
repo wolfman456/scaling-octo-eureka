@@ -16,11 +16,15 @@ public record GalleryItemDto(
         Boolean published,
         Instant createdAt,
         List<String> images,
+        List<String> thumbnails,
         List<Long> mediaIds) {
 
     public static GalleryItemDto from(GalleryItem item) {
         List<String> images = item.getMedia().stream()
                 .map(media -> "/uploads/" + media.getStoredName())
+                .toList();
+        List<String> thumbnails = item.getMedia().stream()
+                .map(media -> media.getThumbnailName() == null ? null : "/uploads/" + media.getThumbnailName())
                 .toList();
         List<Long> mediaIds = item.getMedia().stream()
                 .map(MediaAsset::getId)
@@ -35,6 +39,7 @@ public record GalleryItemDto(
                 item.getPublished(),
                 item.getCreatedAt(),
                 images,
+                thumbnails,
                 mediaIds);
     }
 }

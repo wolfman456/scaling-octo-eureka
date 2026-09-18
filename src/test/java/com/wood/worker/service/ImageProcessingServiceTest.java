@@ -26,7 +26,7 @@ class ImageProcessingServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ImageProcessingService(2000, 0.82);
+        service = new ImageProcessingService(2000, 480, 0.82);
     }
 
     @Test
@@ -77,6 +77,36 @@ class ImageProcessingServiceTest {
         assertFalse(service.needsProcessing(source));
         assertTrue(service.downscale(source, target).isEmpty());
         assertFalse(Files.exists(target));
+    }
+
+    @Test
+    void thumbnailResizesToGridEdge() throws IOException {
+        Path source = TestImages.writeJpeg(tempDir.resolve("thumb-src.jpg"), 2000, 1500);
+        Path target = tempDir.resolve("thumb-out.jpg");
+
+        Optional<ImageProcessingService.ProcessedImage> result = service.thumbnail(source, target);
+
+        assertTrue(result.isPresent());
+        BufferedImage scaled = ImageIO.read(target.toFile());
+        assertEquals(480, Math.max(scaled.getWidth(), scaled.getHeight()));
+        assertEquals(Files.size(target), result.get().sizeBytes());
+    }
+
+    @Test
+    void thumbnailSkipsSourceAlreadySmaller() throws IOException {
+        Path source = TestImages.writeJpeg(tempDir.resolve("thumb-small.jpg"), 400, 300);
+        Path target = tempDir.resolve("thumb-small-out.jpg");
+
+        assertTrue(service.thumbnail(source, target).isEmpty());
+        assertFalse(Files.exists(target));
+    }
+
+    @Test
+    void thumbnailIgnoresUnsupportedFormat() throws IOException {
+        Path source = tempDir.resolve("thumb.png");
+        Files.write(source, new byte[] {1, 2, 3, 4});
+
+        assertTrue(service.thumbnail(source, tempDir.resolve("thumb-png-out.jpg")).isEmpty());
     }
 
     @Test

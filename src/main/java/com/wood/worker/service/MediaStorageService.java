@@ -45,12 +45,15 @@ public class MediaStorageService {
 
             boolean isImage = !isVideo(file);
             long sizeBytes = file.getSize();
+            String thumbnailName = null;
             if (isImage && imageProcessing.isSupported(display)) {
                 sizeBytes = optimize(display, storedName);
+                thumbnailName = generateThumbnail(storedName);
             }
 
             MediaAsset asset = new MediaAsset();
             asset.setStoredName(storedName);
+            asset.setThumbnailName(thumbnailName);
             asset.setContentType(file.getContentType());
             asset.setSizeBytes(sizeBytes);
             asset.setSortOrder(sortOrder);
@@ -85,6 +88,31 @@ public class MediaStorageService {
     public void delete(String storedName) {
         deleteIfExists(uploadDir.resolve(storedName));
         deleteIfExists(originalDir.resolve(storedName));
+    }
+
+    public void delete(MediaAsset asset) {
+        delete(asset.getStoredName());
+        if (asset.getThumbnailName() != null) {
+            deleteIfExists(uploadDir.resolve(asset.getThumbnailName()));
+        }
+    }
+
+    /**
+     * Grid-sized companion file name for a stored asset, e.g. {@code abc.jpg} →
+     * {@code abc_thumb.jpg}. Lives beside the display copy so it is served the same way.
+     */
+    public static String thumbnailName(String storedName) {
+        int dot = storedName.lastIndexOf('.');
+        return dot >= 0
+                ? storedName.substring(0, dot) + "_thumb" + storedName.substring(dot)
+                : storedName + "_thumb";
+    }
+
+    private String generateThumbnail(String storedName) {
+        String thumbName = thumbnailName(storedName);
+        Optional<ImageProcessingService.ProcessedImage> processed =
+                imageProcessing.thumbnail(uploadDir.resolve(storedName), uploadDir.resolve(thumbName));
+        return processed.isPresent() ? thumbName : null;
     }
 
     public byte[] readBytes(String storedName) {
