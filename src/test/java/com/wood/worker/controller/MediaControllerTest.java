@@ -2,6 +2,7 @@ package com.wood.worker.controller;
 
 import tools.jackson.databind.JsonNode;
 import com.wood.worker.TestSupport;
+import com.wood.worker.config.CacheHeaderWriter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -22,12 +23,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:gallerytest;DB_CLOSE_DELAY=-1;MODE=LEGACY",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "app.upload-dir=target/test-uploads",
+        "app.original-dir=target/test-originals",
         "app.admin.user=admin",
         "app.admin.password=test"
 })
@@ -178,6 +181,22 @@ class MediaControllerTest {
         mockMvc.perform(delete("/api/admin/media/" + media.get("id").asLong())
                         .header(HttpHeaders.AUTHORIZATION, TestSupport.basicAuth()))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void servedUploadsAreCacheable() throws Exception {
+        JsonNode json = uploadPhoto();
+
+        mockMvc.perform(get(json.get("url").asText()))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, CacheHeaderWriter.IMMUTABLE));
+    }
+
+    @Test
+    void apiResponsesAreNotCached() throws Exception {
+        mockMvc.perform(get("/api/settings"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, CacheHeaderWriter.NO_STORE));
     }
 
     private void attachToGalleryItem(String mediaId) throws Exception {
