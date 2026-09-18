@@ -59,7 +59,7 @@ public class AdminMediaController {
                     if (usage.isInUse(id)) {
                         return ResponseEntity.status(HttpStatus.CONFLICT).<Void>build();
                     }
-                    storage.delete(asset.getStoredName());
+                    storage.delete(asset);
                     media.delete(asset);
                     return ResponseEntity.noContent().<Void>build();
                 })
