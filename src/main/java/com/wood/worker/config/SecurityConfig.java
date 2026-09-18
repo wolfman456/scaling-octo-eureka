@@ -33,7 +33,10 @@ public class SecurityConfig {
                                 "/uploads/**", "/h2-console/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
-                .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
+                .headers(headers -> headers
+                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
+                        .cacheControl(HeadersConfigurer.CacheControlConfig::disable)
+                        .addHeaderWriter(new CacheHeaderWriter()))
                 .httpBasic(Customizer.withDefaults());
         return http.build();
     }

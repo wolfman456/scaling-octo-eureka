@@ -8,4 +8,6 @@ import java.util.List;
 public interface MediaAssetRepository extends JpaRepository<MediaAsset, Long> {
 
     List<MediaAsset> findAllByOrderByUploadedAtDesc();
+
+    List<MediaAsset> findByAssetType(MediaAsset.AssetType assetType);
 }

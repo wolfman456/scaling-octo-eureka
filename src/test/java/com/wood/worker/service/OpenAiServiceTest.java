@@ -38,7 +38,8 @@ class OpenAiServiceTest {
         server = new StubOpenAiServer();
         server.start();
         mapper = new ObjectMapper();
-        storage = new MediaStorageService(tempDir.toString());
+        storage = new MediaStorageService(tempDir.toString(), tempDir.resolve("originals").toString(),
+                new ImageProcessingService(2000, 0.82));
         service = service("sk-test");
     }
 
