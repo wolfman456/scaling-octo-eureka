@@ -220,6 +220,10 @@ public class GalleryCrudTest {
         mockMvc.perform(get("/api/gallery/" + created.get("id").asLong()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.images[0]").value(created.get("images").get(0).asText()));
+        mockMvc.perform(get("/api/admin/media")
+                        .header(HttpHeaders.AUTHORIZATION, TestSupport.basicAuth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == " + created.get("mediaIds").get(0).asLong() + ")]").exists());
     }
 
     @Test
@@ -251,6 +255,10 @@ public class GalleryCrudTest {
                 .andReturn();
         JsonNode updated = objectMapper.readTree(result.getResponse().getContentAsString());
         assertEquals(1, updated.get("images").size());
+        mockMvc.perform(get("/api/admin/media")
+                        .header(HttpHeaders.AUTHORIZATION, TestSupport.basicAuth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == " + updated.get("mediaIds").get(0).asLong() + ")]").exists());
     }
 
     @Test

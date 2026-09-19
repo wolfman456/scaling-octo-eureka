@@ -3,6 +3,7 @@ package com.wood.worker.controller;
 import com.wood.worker.dto.GalleryItemDto;
 import com.wood.worker.dto.GalleryItemForm;
 import com.wood.worker.model.GalleryItem;
+import com.wood.worker.model.MediaAsset;
 import com.wood.worker.repository.CategoryRepository;
 import com.wood.worker.repository.GalleryItemRepository;
 import com.wood.worker.repository.MediaAssetRepository;
@@ -58,7 +59,7 @@ public class AdminGalleryController {
         apply(item, form);
         attachMedia(item, form);
         if (image != null && !image.isEmpty()) {
-            item.getMedia().add(storageService.store(image, item.getMedia().size()));
+            item.getMedia().add(storeAsset(image, item.getMedia().size()));
         }
         GalleryItem saved = repository.save(item);
         return ResponseEntity.status(HttpStatus.CREATED).body(GalleryItemDto.from(saved));
@@ -74,7 +75,7 @@ public class AdminGalleryController {
                     apply(item, form);
                     attachMedia(item, form);
                     if (image != null && !image.isEmpty()) {
-                        item.getMedia().add(storageService.store(image, item.getMedia().size()));
+                        item.getMedia().add(storeAsset(image, item.getMedia().size()));
                     }
                     item.setUpdatedAt(Instant.now());
                     return ResponseEntity.ok(GalleryItemDto.from(repository.save(item)));
@@ -106,5 +107,9 @@ public class AdminGalleryController {
         if (form.mediaIds() != null) {
             item.getMedia().addAll(media.findAllById(form.mediaIds()));
         }
+    }
+
+    private MediaAsset storeAsset(MultipartFile image, int sortOrder) {
+        return media.save(storageService.store(image, sortOrder));
     }
 }
