@@ -1,5 +1,6 @@
 package com.wood.worker.controller;
 
+import jakarta.validation.Valid;
 import com.wood.worker.dto.ChangePasswordForm;
 import com.wood.worker.service.AdminUserService;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +23,7 @@ public class AdminAuthController {
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<Map<String, String>> changePassword(@RequestBody ChangePasswordForm form,
+    public ResponseEntity<Map<String, String>> changePassword(@RequestBody @Valid ChangePasswordForm form,
                                                               Authentication authentication) {
         try {
             String username = users.changePassword(

@@ -52,7 +52,7 @@ public class SiteSettingsService {
     @Transactional
     public void update(SettingsUpdateForm form) {
         upsert(SITE_TITLE, form.siteTitle());
-        upsert(BACKGROUND_MEDIA, form.backgroundMediaId() == null ? null : String.valueOf(form.backgroundMediaId()));
+        upsert(BACKGROUND_MEDIA, form.backgroundMediaId());
         upsert(CONTACT_EMAIL, form.contactEmail());
         upsert(ETSY_URL, form.etsyUrl());
         upsert(INSTAGRAM_URL, form.instagramUrl());

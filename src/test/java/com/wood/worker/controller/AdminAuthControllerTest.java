@@ -83,7 +83,8 @@ class AdminAuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"currentPassword\":\"" + CURRENT + "\",\"newPassword\":\"short\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("New password must be at least 8 characters"));
+                .andExpect(jsonPath("$.message").value("New password must be at least 8 characters"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("newPassword"));
     }
 
     @Test

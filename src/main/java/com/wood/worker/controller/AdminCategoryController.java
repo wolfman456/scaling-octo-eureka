@@ -1,5 +1,6 @@
 package com.wood.worker.controller;
 
+import jakarta.validation.Valid;
 import com.wood.worker.dto.CategoryDto;
 import com.wood.worker.dto.CategoryForm;
 import com.wood.worker.model.Category;
@@ -41,7 +42,7 @@ public class AdminCategoryController {
 
     @PostMapping
     @Transactional
-    public ResponseEntity<CategoryDto> create(@RequestBody CategoryForm form) {
+    public ResponseEntity<CategoryDto> create(@RequestBody @Valid CategoryForm form) {
         Category category = new Category();
         apply(category, form);
         return ResponseEntity.status(HttpStatus.CREATED).body(CategoryDto.from(categories.save(category)));
@@ -49,7 +50,7 @@ public class AdminCategoryController {
 
     @PutMapping("/{id}")
     @Transactional
-    public ResponseEntity<CategoryDto> update(@PathVariable Long id, @RequestBody CategoryForm form) {
+    public ResponseEntity<CategoryDto> update(@PathVariable Long id, @RequestBody @Valid CategoryForm form) {
         return categories.findById(id)
                 .map(category -> {
                     apply(category, form);
