@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -106,7 +107,7 @@ class SettingsControllerTest {
                 .andReturn();
         long mediaId = objectMapper.readTree(upload.getResponse().getContentAsString()).get("id").asLong();
 
-        JsonNode updated = putSettings("{\"backgroundMediaId\":" + mediaId + "}");
+        JsonNode updated = putSettings("{\"backgroundMediaId\":\"" + mediaId + "\"}");
         String url = updated.get("backgroundImage").asText();
         assertEquals(mediaId, updated.get("backgroundMediaId").asLong());
         org.junit.jupiter.api.Assertions.assertTrue(url.startsWith("/uploads/"));
@@ -114,6 +115,21 @@ class SettingsControllerTest {
         mockMvc.perform(get("/api/settings"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.backgroundImage").value(url));
+    }
+
+    @Test
+    void emptyStringForBackgroundClearsIt() throws Exception {
+        MvcResult upload = mockMvc.perform(multipart("/api/admin/media")
+                        .file(new MockMultipartFile("file", "bg.png", "image/png", TestSupport.PNG_BYTES))
+                        .header(HttpHeaders.AUTHORIZATION, TestSupport.basicAuth()))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long mediaId = objectMapper.readTree(upload.getResponse().getContentAsString()).get("id").asLong();
+        putSettings("{\"backgroundMediaId\":\"" + mediaId + "\"}");
+
+        JsonNode cleared = putSettings("{\"backgroundMediaId\":\"\"}");
+        assertTrue(cleared.get("backgroundMediaId").isNull());
+        assertTrue(cleared.get("backgroundImage").isNull());
     }
 
     @Test

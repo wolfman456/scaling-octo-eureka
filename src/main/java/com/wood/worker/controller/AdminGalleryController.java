@@ -1,5 +1,6 @@
 package com.wood.worker.controller;
 
+import jakarta.validation.Valid;
 import com.wood.worker.dto.GalleryItemDto;
 import com.wood.worker.dto.GalleryItemForm;
 import com.wood.worker.model.GalleryItem;
@@ -53,7 +54,7 @@ public class AdminGalleryController {
 
     @PostMapping(consumes = "multipart/form-data")
     @Transactional
-    public ResponseEntity<GalleryItemDto> create(@RequestPart("item") GalleryItemForm form,
+    public ResponseEntity<GalleryItemDto> create(@RequestPart("item") @Valid GalleryItemForm form,
                                                  @RequestPart(value = "image", required = false) MultipartFile image) {
         GalleryItem item = new GalleryItem();
         apply(item, form);
@@ -68,7 +69,7 @@ public class AdminGalleryController {
     @PutMapping(path = "/{id}", consumes = "multipart/form-data")
     @Transactional
     public ResponseEntity<GalleryItemDto> update(@PathVariable Long id,
-                                                 @RequestPart("item") GalleryItemForm form,
+                                                 @RequestPart("item") @Valid GalleryItemForm form,
                                                  @RequestPart(value = "image", required = false) MultipartFile image) {
         return repository.findById(id)
                 .map(item -> {

@@ -1,5 +1,6 @@
 package com.wood.worker.controller;
 
+import jakarta.validation.Valid;
 import com.wood.worker.dto.ArticleDto;
 import com.wood.worker.dto.ArticleForm;
 import com.wood.worker.model.Article;
@@ -47,7 +48,7 @@ public class AdminArticleController {
 
     @PostMapping
     @Transactional
-    public ResponseEntity<ArticleDto> create(@RequestBody ArticleForm form) {
+    public ResponseEntity<ArticleDto> create(@RequestBody @Valid ArticleForm form) {
         Article article = new Article();
         apply(article, form);
         article.setSlug(resolveSlug(null, form.slug(), form.title()));
@@ -56,7 +57,7 @@ public class AdminArticleController {
 
     @PutMapping("/{id}")
     @Transactional
-    public ResponseEntity<ArticleDto> update(@PathVariable Long id, @RequestBody ArticleForm form) {
+    public ResponseEntity<ArticleDto> update(@PathVariable Long id, @RequestBody @Valid ArticleForm form) {
         return articles.findById(id)
                 .map(article -> {
                     apply(article, form);
