@@ -1,5 +1,6 @@
 package com.wood.worker.controller;
 
+import jakarta.validation.Valid;
 import com.wood.worker.dto.ArticleDraftDto;
 import com.wood.worker.dto.ArticleDraftRequest;
 import com.wood.worker.dto.ImageDescriptionDto;
@@ -44,7 +45,7 @@ public class AdminAiController {
 
     @PostMapping("/draft-article")
     @Transactional(readOnly = true)
-    public ResponseEntity<ArticleDraftDto> draftArticle(@RequestBody ArticleDraftRequest request) {
+    public ResponseEntity<ArticleDraftDto> draftArticle(@RequestBody @Valid ArticleDraftRequest request) {
         List<MediaAsset> photos = request.mediaIds() == null
                 ? List.of()
                 : media.findAllById(request.mediaIds());

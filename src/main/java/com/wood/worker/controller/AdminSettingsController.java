@@ -1,5 +1,6 @@
 package com.wood.worker.controller;
 
+import jakarta.validation.Valid;
 import com.wood.worker.dto.SettingsUpdateForm;
 import com.wood.worker.dto.SiteSettingsDto;
 import com.wood.worker.service.SiteSettingsService;
@@ -26,7 +27,7 @@ public class AdminSettingsController {
     }
 
     @PutMapping
-    public ResponseEntity<SiteSettingsDto> update(@RequestBody SettingsUpdateForm form) {
+    public ResponseEntity<SiteSettingsDto> update(@RequestBody @Valid SettingsUpdateForm form) {
         settings.update(form);
         return ResponseEntity.ok(settings.current());
     }
