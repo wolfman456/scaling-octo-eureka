@@ -204,6 +204,8 @@ into a single envelope:
 | 404 | missing/unpublished resource |
 | 409 | `DataIntegrityViolationException` (e.g. duplicate slug), media or category still in use, `IncorrectResultSizeDataAccessException` |
 | 413 | `MaxUploadSizeExceededException` |
+| 502 | OpenAI upstream failure (`AiCallException`) |
+| 503 | AI helpers disabled — no `OPENAI_API_KEY` (`AiDisabledException`) |
 | 500 | catch-all; the message is logged, not returned |
 
 All admin form DTOs carry bean validation annotations, so invalid input is
@@ -221,8 +223,10 @@ Configured by `app.openai.*` in `application.properties`:
 | `app.openai.timeout-ms` | `30000` | |
 
 The endpoints are admin-only and stateless. With no key configured,
-`OpenAiService` throws `AiDisabledException` → **503** so the admin UI can hide
-the buttons; an upstream failure throws `AiCallException` → **502**.
+`OpenAiService` throws `AiDisabledException` → **503**; an upstream failure
+throws `AiCallException` → **502**. Both are returned in the standard error
+envelope, so the admin panels surface the message in their form-error area
+while the rest of the form keeps working.
 
 ## Cache policy
 

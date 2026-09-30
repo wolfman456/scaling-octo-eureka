@@ -1,6 +1,7 @@
 package com.wood.worker.controller;
 
 import jakarta.validation.Valid;
+import com.wood.worker.config.ApiExceptionHandler.ApiError;
 import com.wood.worker.dto.ArticleDraftDto;
 import com.wood.worker.dto.ArticleDraftRequest;
 import com.wood.worker.dto.ImageDescriptionDto;
@@ -53,13 +54,15 @@ public class AdminAiController {
     }
 
     @ExceptionHandler(AiDisabledException.class)
-    public ResponseEntity<String> handleDisabled(AiDisabledException e) {
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(e.getMessage());
+    public ResponseEntity<ApiError> handleDisabled(AiDisabledException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ApiError(HttpStatus.SERVICE_UNAVAILABLE.value(), e.getMessage(), null));
     }
 
     @ExceptionHandler(AiCallException.class)
-    public ResponseEntity<String> handleCall(AiCallException e) {
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(e.getMessage());
+    public ResponseEntity<ApiError> handleCall(AiCallException e) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(new ApiError(HttpStatus.BAD_GATEWAY.value(), e.getMessage(), null));
     }
 
     private boolean isImage(MultipartFile file) {
