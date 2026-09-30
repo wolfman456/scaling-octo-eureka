@@ -49,7 +49,7 @@ class OpenAiServiceTest {
     }
 
     private OpenAiService service(String apiKey) {
-        return new OpenAiService(apiKey, server.baseUrl(), "gpt-4o-mini",
+        return new OpenAiService(apiKey, server.baseUrl(), "gpt-4o-mini", 30_000,
                 RestClient.builder(), mapper, storage);
     }
 
@@ -178,6 +178,32 @@ class OpenAiServiceTest {
     void describeImageThrowsWhenServerUnreachable() {
         server.stop();
         assertThrows(AiCallException.class, () -> service.describeImage(image()));
+    }
+
+    @Test
+    void describeImageGivesUpOnAStalledServer() {
+        server.stall(3_000);
+        OpenAiService impatient = new OpenAiService("sk-test", server.baseUrl(), "gpt-4o-mini", 300,
+                RestClient.builder(), mapper, storage);
+
+        long start = System.nanoTime();
+        var error = assertThrows(AiCallException.class, () -> impatient.describeImage(image()));
+        long elapsedMillis = (System.nanoTime() - start) / 1_000_000;
+
+        // The whole point of the property: bound the wait instead of holding the
+        // admin request thread for as long as the upstream cares to stall.
+        assertTrue(elapsedMillis < 2_000, "gave up after " + elapsedMillis + "ms");
+        assertTrue(error.getMessage().contains("did not respond within 300ms"), error.getMessage());
+    }
+
+    @Test
+    void nonPositiveTimeoutIsRejectedAtConstruction() {
+        for (long timeout : new long[]{0, -1}) {
+            var error = assertThrows(IllegalArgumentException.class,
+                    () -> new OpenAiService("sk-test", server.baseUrl(), "gpt-4o-mini", timeout,
+                            RestClient.builder(), mapper, storage));
+            assertTrue(error.getMessage().contains("app.openai.timeout-ms"), error.getMessage());
+        }
     }
 
     @Test
