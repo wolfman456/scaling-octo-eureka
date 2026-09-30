@@ -111,6 +111,10 @@ public class AdminGalleryController {
     }
 
     private MediaAsset storeAsset(MultipartFile image, int sortOrder) {
-        return media.save(storageService.store(image, sortOrder));
+        MediaAsset asset = storageService.store(image, sortOrder);
+        // This asset is saved before the item that references it, so a failure later
+        // in the request discards the row and must take the file with it.
+        storageService.deleteOnRollback(asset);
+        return media.save(asset);
     }
 }

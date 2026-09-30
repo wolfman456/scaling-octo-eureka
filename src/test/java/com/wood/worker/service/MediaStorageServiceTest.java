@@ -6,6 +6,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionSynchronizationUtils;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -107,6 +110,109 @@ class MediaStorageServiceTest {
     @Test
     void deleteMissingFileIsNoop() {
         service.delete("does-not-exist.jpg");
+    }
+
+    @Test
+    void deleteFailsLoudlyWhenTheFileCannotBeRemoved() throws IOException {
+        // A non-empty directory standing in for the file cannot be removed.
+        Path blocked = Files.createDirectories(tempDir.resolve("blocked.jpg"));
+        Files.createFile(blocked.resolve("child"));
+
+        var error = assertThrows(IllegalStateException.class, () -> service.delete("blocked.jpg"));
+
+        assertTrue(error.getMessage().contains("Failed to delete stored file"), error.getMessage());
+    }
+
+    @Test
+    void deleteAfterFailedSaveRemovesEveryFile() throws IOException {
+        MediaAsset asset = store("cleanup.jpg", "image/jpeg", TestImages.jpeg(4000, 3000));
+        assertNotNull(asset.getThumbnailName());
+
+        service.deleteAfterFailedSave(asset);
+
+        assertFalse(Files.exists(tempDir.resolve(asset.getStoredName())));
+        assertFalse(Files.exists(tempDir.resolve(asset.getThumbnailName())));
+        assertFalse(Files.exists(originals().resolve(asset.getStoredName())));
+    }
+
+    @Test
+    void deleteAfterFailedSaveNeverMasksTheOriginalFailure() throws IOException {
+        Path blocked = Files.createDirectories(tempDir.resolve("blocked.jpg"));
+        Files.createFile(blocked.resolve("child"));
+        MediaAsset asset = store("kept.jpg", "image/jpeg", TestImages.jpeg(1200, 900));
+        asset.setStoredName("blocked.jpg");
+        asset.setThumbnailName(null);
+
+        service.deleteAfterFailedSave(asset);
+
+        assertTrue(Files.exists(blocked));
+    }
+
+    @Test
+    void libraryUploadsCarryNoSortOrder() throws IOException {
+        MediaAsset asset = service.store(new MockMultipartFile("file", "photo.png", "image/png", PNG()));
+
+        assertEquals(0, asset.getSortOrder());
+    }
+
+    @Test
+    void rollbackRemovesTheFilesWhenTheTransactionIsRolledBack() throws IOException {
+        MediaAsset asset = store("rolled-back.jpg", "image/jpeg", TestImages.jpeg(4000, 3000));
+        assertTrue(Files.exists(tempDir.resolve(asset.getStoredName())));
+        assertTrue(Files.exists(originals().resolve(asset.getStoredName())));
+
+        completeTransaction(TransactionSynchronization.STATUS_ROLLED_BACK,
+                () -> service.deleteOnRollback(asset));
+
+        assertFalse(Files.exists(tempDir.resolve(asset.getStoredName())));
+        assertFalse(Files.exists(tempDir.resolve(asset.getThumbnailName())));
+        assertFalse(Files.exists(originals().resolve(asset.getStoredName())));
+    }
+
+    @Test
+    void rollbackKeepsTheFilesWhenTheTransactionCommits() throws IOException {
+        MediaAsset asset = store("committed.jpg", "image/jpeg", TestImages.jpeg(4000, 3000));
+
+        completeTransaction(TransactionSynchronization.STATUS_COMMITTED,
+                () -> service.deleteOnRollback(asset));
+
+        assertTrue(Files.exists(tempDir.resolve(asset.getStoredName())));
+        assertTrue(Files.exists(originals().resolve(asset.getStoredName())));
+    }
+
+    @Test
+    void rollbackCleanupIsSilentWhenItAlsoFails() throws IOException {
+        Path blocked = Files.createDirectories(tempDir.resolve("blocked.jpg"));
+        Files.createFile(blocked.resolve("child"));
+        MediaAsset asset = store("stuck.jpg", "image/jpeg", TestImages.jpeg(1200, 900));
+        asset.setStoredName("blocked.jpg");
+        asset.setThumbnailName(null);
+
+        // A failure during rollback must not replace the error that caused it.
+        completeTransaction(TransactionSynchronization.STATUS_ROLLED_BACK,
+                () -> service.deleteOnRollback(asset));
+
+        assertTrue(Files.exists(blocked));
+    }
+
+    @Test
+    void rollbackCleanupIsSkippedOutsideATransaction() throws IOException {
+        MediaAsset asset = store("no-transaction.jpg", "image/jpeg", TestImages.jpeg(1200, 900));
+
+        service.deleteOnRollback(asset);
+
+        assertTrue(Files.exists(tempDir.resolve(asset.getStoredName())));
+    }
+
+    /** Drives one transaction's completion the way the framework would. */
+    private void completeTransaction(int status, Runnable body) {
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            body.run();
+        } finally {
+            TransactionSynchronizationUtils.triggerAfterCompletion(status);
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @Test

@@ -185,6 +185,39 @@ and the site background all reference library media by id, so the same photo can
 be reused in several places. Deleting an item or article never deletes shared
 library media.
 
+`media_asset.sort_order` is only meaningful for a photo's position inside a
+gallery item's own media list (set from the list index on the inline-cover
+upload). **Library uploads carry no sort order at all** — the library is listed
+`uploaded_at DESC`, so nothing derives an order from a row count.
+
+## Media storage consistency
+
+Files and rows are two stores that cannot share a transaction, so the ordering
+is deliberate. Nothing here trusts the caller to clean up.
+
+- **Write.** The file (and its thumbnail/original) lands on disk first, then the
+  row. As soon as the file is stored, `MediaStorageService.deleteOnRollback`
+  registers a transaction callback that removes it if the transaction rolls back.
+  A try/catch around the save is not enough: the row is discarded by *any* later
+  failure — the gallery item save, a constraint found at flush, even serialising
+  the response — and rollback is the one moment both halves are known to be
+  unwound. Cleanup itself never throws, because it runs while the original error
+  is already propagating and must not replace it.
+- **Delete.** The row is deleted and **flushed** first, then the files. Flushing
+  forces the foreign keys to be checked before anything is unlinked: a reference
+  that landed after the usage check fails the delete while the files are still
+  intact. If the file delete then fails, the exception rolls the row back and its
+  files are still there to match. Deleting files first — the old behaviour — put
+  a rollback between the two and could leave a restored row pointing at a file
+  that was already gone.
+- **Concurrent reference.** `MediaUsageService.isInUse` is a read-then-write, so
+  a reference committed in the gap would be missed by the check. The database
+  foreign keys on `item_media.media_id`, `article_media.media_id` and
+  `article.featured_media_id` are the backstop, and `ApiExceptionHandler` already
+  maps that violation to 409. The site background is the one exception: it is
+  stored as an id string in `site_setting`, not a foreign key, so that reference
+  genuinely does rely on the usage check.
+
 Not built: an `app_user` accounts table (admin is a single seeded credential) and
 a `video` table (`media_asset.asset_type` anticipates it, but nothing creates or
 serves video yet).
@@ -221,7 +254,7 @@ no background thumbnail — the site shell uses the full image as a CSS backgrou
 - Media library
   - `GET /api/admin/media` → list (newest first)
   - `POST /api/admin/media` multipart `file` → 201 asset
-  - `DELETE /api/admin/media/{id}` → 204; **409 if in use** (gallery item, article media, article featured, or site background); 404 if missing
+  - `DELETE /api/admin/media/{id}` → 204; **409 if in use** (gallery item, article media, article featured, or site background); 404 if missing. If the file cannot be deleted the row is kept and the request fails 500 — see "Media storage consistency"
 - Gallery
   - `POST /api/admin/gallery` multipart: part `item` (JSON: title, description, categoryId, sortOrder, published, mediaIds[]), part `image` optional (uploads a new library asset **and persists it before** the item is saved)
   - `PUT /api/admin/gallery/{id}` multipart: same parts; replaces the media list via `mediaIds`

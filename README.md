@@ -77,6 +77,12 @@ variant for grids, and their untouched original is moved to a directory that is
 never served. `/uploads/**` is cached immutably because filenames are
 content-addressed.
 
+A failed upload never leaves a file behind that nothing references, and a
+delete is refused before anything is unlinked if the database finds a reference
+the in-use check missed. The library never advertises a photo it cannot serve.
+Ordering details are in
+[`docs/DESIGN.md`](docs/DESIGN.md#media-storage-consistency).
+
 ## Deployment
 
 `Dockerfile` builds an API-only image (multi-stage Maven → JRE) with
