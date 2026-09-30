@@ -35,18 +35,27 @@ proxies `/api` and `/uploads` here.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ADMIN_USER` | `bloodwolf` | Seeded admin username, first boot only |
-| `ADMIN_PASSWORD` | `NeedToChange` | Seeded admin password, first boot only |
+| `ADMIN_USER` | `admin` | Seeded admin username, first boot only |
+| `ADMIN_PASSWORD` | *(empty)* | Seeded admin password, first boot only; empty → a random one is generated and logged once |
+| `ADMIN_RESET_PASSWORD` | *(empty)* | While set, overwrites the stored admin password on **every** boot. Unset it once you are back in |
 | `OPENAI_API_KEY` | *(empty)* | Enables the AI writing helpers; empty → 503 |
 | `PORT` | `8080` | HTTP port |
 | `APP_ORIGINALS_DIR` | `./originals` | Full-resolution originals, never served |
 | `PGHOST` `PGPORT` `PGUSER` `PGPASSWORD` `PGDATABASE` | — | Production Postgres (profile `production`) |
 | `APP_CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated allowed origins; **required in production** |
 
-The admin credential is seeded **once**, on an empty database, and then lives in
-the DB. Change it from the admin console's Account tab, or
-`POST /api/admin/change-password`. The `bloodwolf`/`NeedToChange` fallback only
-applies before that first change — treat it as a to-do, not a credential.
+There is **no committed default credential.** The admin account is seeded once,
+when the database has no admin row, and lives in the DB from then on:
+
+- `ADMIN_PASSWORD` set → that password is used, and it must be at least 8
+  characters (a shorter value aborts the boot rather than seeding a weak one).
+- `ADMIN_PASSWORD` unset → a random password is generated and printed **once**
+  in the startup log. Copy it out of the log, then change it from the admin
+  console's Account tab or `POST /api/admin/change-password`.
+
+Forgotten password: set `ADMIN_RESET_PASSWORD` to a new value, redeploy, log in,
+then unset the variable. While it is set it overwrites the stored hash on every
+boot, so leaving it behind re-applies the same password on later deploys.
 
 ## API surface
 
