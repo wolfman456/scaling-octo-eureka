@@ -77,6 +77,58 @@ host redacted) and the effective CORS origins on every production boot, so a
 misconfigured deploy is diagnosable from the logs alone. `WebConfig` logs the
 parsed origin list in every profile.
 
+### Admin login throttling
+
+Basic auth on `/api/admin/**` is otherwise an unthrottled oracle: bcrypt cost 10
+slows each guess but there is no limit on how many guesses arrive.
+`AdminLoginThrottleFilter` sits ahead of the Basic filter so a locked key is
+refused with **429** and a `Retry-After` header without paying for a bcrypt
+comparison — otherwise the limiter would only make brute force slower, not stop
+it.
+
+Each failure is counted against **two keys**, and both must be clear to let a
+request through:
+
+- the client address, from `X-Forwarded-For` (then `X-Real-IP`, then
+  `remoteAddr`), which stops password spraying — one password, many accounts,
+  from one host;
+- the attempted username, read from the Basic header before authentication runs,
+  which stops a distributed attack on the single admin account.
+
+A success clears both keys, so a mistyped password does not accumulate toward a
+lockout. A 401 with no usable credentials still counts against the address key.
+
+Configurable, all with the defaults shown:
+
+| Property | Default |
+|---|---|
+| `app.admin.max-login-attempts` / `ADMIN_MAX_LOGIN_ATTEMPTS` | `5` |
+| `app.admin.login-attempt-window` / `ADMIN_LOGIN_ATTEMPT_WINDOW` | `PT15M` |
+| `app.admin.login-lockout` / `ADMIN_LOGIN_LOCKOUT` | `PT15M` |
+
+Failures outside the window do not accumulate: someone who mistypes a password
+once a month is not eventually locked out by it.
+
+**Trade-offs, stated plainly:**
+
+- The username bucket is **global, not per address**, so an attacker can lock the
+  real admin out for the lockout period. That is the deliberate side of the same
+  choice that stops a distributed attack — a per-address username bucket would
+  provide no protection against the threat it exists for.
+- State is **in memory and per instance**. A restart or a second replica clears
+  it. That is why the lockout is time-boxed rather than permanent, and why no
+  persistent store is involved; an admin login limiter is not worth another set of
+  credentials to protect.
+- Because the limiter reads `X-Forwarded-For`, it is only as trustworthy as the
+  proxy in front. The nginx config does not currently forward that header, so in
+  the deployed topology every request shares one address bucket and the username
+  bucket does the real work. Forwarding it from nginx is a frontend-repo change
+  and is not done here.
+
+The 429 body uses the standard error envelope, but the 401 is left entirely to
+Spring Security: it owns the `WWW-Authenticate` challenge that makes a browser
+prompt for credentials.
+
 ## Admin credentials
 
 There is no committed default credential. `AdminUserSeeder` runs on every boot
@@ -291,6 +343,7 @@ into a single envelope:
 | 400 | `MethodArgumentNotValidException`, `ConstraintViolationException`, `MethodArgumentTypeMismatchException`, `HttpMessageNotReadableException`, `MissingServletRequestPartException`, `IllegalArgumentException` |
 | 404 | missing/unpublished resource |
 | 409 | `DataIntegrityViolationException` (e.g. duplicate slug), media or category still in use, `IncorrectResultSizeDataAccessException` |
+| 429 | too many failed admin logins (throttle filter, with `Retry-After`) |
 | 413 | `MaxUploadSizeExceededException` |
 | 502 | OpenAI upstream failure (`AiCallException`) |
 | 503 | AI helpers disabled — no `OPENAI_API_KEY` (`AiDisabledException`) |
@@ -309,6 +362,9 @@ Configured by `app.openai.*` in `application.properties`:
 | `app.openai.base-url` | `https://api.openai.com/v1` | any OpenAI-compatible endpoint |
 | `app.openai.model` | `gpt-4o-mini` | |
 | `app.openai.timeout-ms` | `${OPENAI_TIMEOUT_MS:30000}` | Connect **and** read timeout for the OpenAI client; must be positive |
+| `app.admin.max-login-attempts` | `${ADMIN_MAX_LOGIN_ATTEMPTS:5}` | Failures before an admin login is refused with 429 |
+| `app.admin.login-attempt-window` | `${ADMIN_LOGIN_ATTEMPT_WINDOW:PT15M}` | Window those failures must fall inside |
+| `app.admin.login-lockout` | `${ADMIN_LOGIN_LOCKOUT:PT15M}` | How long a locked key stays refused |
 
 The endpoints are admin-only and stateless. With no key configured,
 `OpenAiService` throws `AiDisabledException` → **503**; an upstream failure
