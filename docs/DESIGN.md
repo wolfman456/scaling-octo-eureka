@@ -355,17 +355,64 @@ Two Railway services, split at the web tier (see the frontend repo's
   `APP_UPLOAD_DIR=/app/data/uploads`, `APP_ORIGINALS_DIR=/app/data/originals`,
   port 8080. The image is API-only; it does not serve the frontend bundle.
 - **Web** — nginx serving the static build and reverse-proxying `/api` and
-  `/uploads` to the API service.
+  `/uploads` to the API service. It takes `API_HOST` (the API's private
+  `.railway.internal` hostname) and `API_PORT` (8080), and resolves the upstream
+  per request via `resolver [fd12::10]:53 valid=5s`. That resolver line is
+  load-bearing: Railway reassigns the API container's IP on redeploy, so an nginx
+  that resolved the name once at startup would 502 until it restarted.
 
 `SpaController` forwards any non-file path to `forward:/index.html` so
 client-side routes survive a hard refresh if the bundle is ever served by this
 service instead.
 
-> **Open risk:** media lives on the container filesystem
-> (`/app/data/uploads`), and no volume mount is configured in this repo. The
-> Postgres database persists across deploys but the uploaded photos may not —
-> verify a Railway volume is attached to the API service before relying on
-> production uploads.
+### Deploying to Railway
+
+The image sets `SPRING_PROFILES_ACTIVE=production`,
+`APP_UPLOAD_DIR=/app/data/uploads` and `APP_ORIGINALS_DIR=/app/data/originals` as
+`ENV`, so those hold even if the service variables are lost. The rest must be set
+on the **API** service:
+
+| Variable | Example | Required |
+|---|---|---|
+| `SPRING_PROFILES_ACTIVE` | `production` | yes — set as a variable too, so a bad image default cannot boot non-production |
+| `APP_UPLOAD_DIR` | `/app/data/uploads` | yes — must be **under the volume mount** |
+| `APP_ORIGINALS_DIR` | `/app/data/originals` | yes — same volume |
+| `APP_CORS_ALLOWED_ORIGINS` | `https://<web-service>.up.railway.app` | yes — must not list localhost |
+| `ADMIN_USER` / `ADMIN_PASSWORD` | *(unset)* | only on first boot, to choose the admin credential |
+| `PGHOST` `PGPORT` `PGDATABASE` `PGUSER` `PGPASSWORD` | Railway-provided | yes — from the Postgres service |
+
+`ProductionConfigGuard` refuses to boot on a wrong profile, an H2 console, a
+non-PostgreSQL datasource, or an empty/loopback-only CORS allow-list — it lists
+every problem at once rather than failing on the first.
+
+**The volume is the part that is not in this repo.** A Railway volume cannot be
+declared in `railway.json`; it is attached to the service in the dashboard, and
+Railway injects `RAILWAY_VOLUME_MOUNT_PATH` when it takes effect. Attach one at
+`/app/data` before the first deploy that accepts uploads.
+
+This matters more than it looks: a service with **no** volume still boots
+cleanly. The app creates the upload directory, the `media_asset` rows persist in
+Postgres, and every photo silently 404s after the next deploy. The old rows
+cannot even be deleted, because `MediaUsageService` still sees the references.
+So the deploy gate is a script, not a hope:
+
+```bash
+VOLUME_ROOT=/app/data ./scripts/deploy-check.sh
+```
+
+It verifies the profile, that `APP_UPLOAD_DIR` sits under the volume root, that
+`RAILWAY_VOLUME_MOUNT_PATH` is present and matches, that CORS is not local, and
+that the media directories are writable — then exits non-zero with every problem
+listed. Run it against the deployment environment (exported variables, or a CI
+step holding the service's) before promoting a deploy.
+
+`RAILWAY_VOLUME_MOUNT_PATH` is the load-bearing check: a missing mount is still a
+writable directory, so no amount of write-testing detects it.
+
+> **Open risk:** the volume attachment lives in the Railway dashboard, not in
+> version control. `scripts/deploy-check.sh` fails the build when it is absent,
+> but nothing in this repository can create it — see #21 for the object-storage
+> alternative that would remove the dependency entirely.
 
 ## Testing & coverage gate
 
