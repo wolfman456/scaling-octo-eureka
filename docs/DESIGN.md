@@ -308,11 +308,20 @@ Configured by `app.openai.*` in `application.properties`:
 | `app.openai.api-key` | `${OPENAI_API_KEY:}` | **Empty disables the feature** |
 | `app.openai.base-url` | `https://api.openai.com/v1` | any OpenAI-compatible endpoint |
 | `app.openai.model` | `gpt-4o-mini` | |
-| `app.openai.timeout-ms` | `30000` | |
+| `app.openai.timeout-ms` | `${OPENAI_TIMEOUT_MS:30000}` | Connect **and** read timeout for the OpenAI client; must be positive |
 
 The endpoints are admin-only and stateless. With no key configured,
 `OpenAiService` throws `AiDisabledException` → **503**; an upstream failure
-throws `AiCallException` → **502**. Both are returned in the standard error
+throws `AiCallException` → **502**.
+
+The OpenAI client gets its own `JdkClientHttpRequestFactory` rather than the
+auto-configured one, so the call is bounded by `app.openai.timeout-ms` instead of
+running as long as the upstream cares to stall. Connect and read share that one
+budget: the read timeout is what caps the wait, and the connect timeout stops an
+unreachable host from consuming it. Without it a stalled call held the admin
+request thread indefinitely — nothing upstream cancels it and no error handler
+can rescue a request that never fails. A timeout surfaces as a normal **502**,
+naming the budget it exceeded. Both are returned in the standard error
 envelope, so the admin panels surface the message in their form-error area
 while the rest of the form keeps working.
 

@@ -39,6 +39,7 @@ proxies `/api` and `/uploads` here.
 | `ADMIN_PASSWORD` | *(empty)* | Seeded admin password, first boot only; empty → a random one is generated and logged once |
 | `ADMIN_RESET_PASSWORD` | *(empty)* | While set, overwrites the stored admin password on **every** boot. Unset it once you are back in |
 | `OPENAI_API_KEY` | *(empty)* | Enables the AI writing helpers; empty → 503 |
+| `OPENAI_TIMEOUT_MS` | `30000` | Caps an AI helper call; a stalled upstream returns 502 rather than hanging |
 | `PORT` | `8080` | HTTP port |
 | `APP_ORIGINALS_DIR` | `./originals` | Full-resolution originals, never served |
 | `PGHOST` `PGPORT` `PGUSER` `PGPASSWORD` `PGDATABASE` | — | Production Postgres (profile `production`) |
