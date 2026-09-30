@@ -38,7 +38,7 @@ class AdminAiControllerDisabledTest {
                         .file(new MockMultipartFile("file", "photo.png", "image/png", TestSupport.PNG_BYTES))
                         .header(HttpHeaders.AUTHORIZATION, TestSupport.basicAuth()))
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$", containsString("AI features are disabled")));
+                .andExpect(jsonPath("$.message", containsString("AI features are disabled")));
     }
 
     @Test
@@ -48,6 +48,6 @@ class AdminAiControllerDisabledTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"topic\":\"table\"}"))
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$", containsString("AI features are disabled")));
+                .andExpect(jsonPath("$.message", containsString("AI features are disabled")));
     }
 }
