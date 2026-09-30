@@ -15,11 +15,19 @@ public final class StubOpenAiServer {
     private volatile int statusCode = 200;
     private volatile String lastRequestBody = "";
     private volatile String lastAuthorization = "";
+    private volatile long stallMillis = 0;
 
     public StubOpenAiServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         server.createContext("/", exchange -> {
             lastRequestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            if (stallMillis > 0) {
+                try {
+                    Thread.sleep(stallMillis);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             lastAuthorization = exchange.getRequestHeaders().getFirst("Authorization");
             byte[] body = responseBody.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -44,6 +52,11 @@ public final class StubOpenAiServer {
 
     public void stop() {
         server.stop(0);
+    }
+
+    /** Accepts the request and then withholds the response, as a stalled upstream would. */
+    public void stall(long millis) {
+        this.stallMillis = millis;
     }
 
     public void respond(int statusCode, String responseBody) {

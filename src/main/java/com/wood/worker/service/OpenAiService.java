@@ -6,7 +6,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.JsonNode;
@@ -15,6 +18,8 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 
@@ -30,10 +35,12 @@ public class OpenAiService {
     private final RestClient restClient;
     private final ObjectMapper mapper;
     private final MediaStorageService storage;
+    private final long timeoutMs;
 
     public OpenAiService(@Value("${app.openai.api-key:}") String apiKey,
                          @Value("${app.openai.base-url}") String baseUrl,
                          @Value("${app.openai.model}") String model,
+                         @Value("${app.openai.timeout-ms:30000}") long timeoutMs,
                          RestClient.Builder builder,
                          ObjectMapper mapper,
                          MediaStorageService storage) {
@@ -41,10 +48,31 @@ public class OpenAiService {
         this.model = model;
         this.mapper = mapper;
         this.storage = storage;
+        this.timeoutMs = timeoutMs;
         this.restClient = builder
                 .baseUrl(baseUrl)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + this.apiKey)
+                .requestFactory(requestFactory(timeoutMs))
                 .build();
+    }
+
+    /**
+     * The OpenAI client is given its own request factory so it cannot outlive
+     * {@code app.openai.timeout-ms}. Without it a stalled upstream call holds the
+     * admin request thread indefinitely: nothing upstream can cancel it and no
+     * error handler can rescue it, because the request never fails. Connect and
+     * read share the one budget — the read timeout is what bounds the wait, and
+     * the connect timeout keeps an unreachable host from burning it.
+     */
+    private static ClientHttpRequestFactory requestFactory(long timeoutMs) {
+        if (timeoutMs <= 0) {
+            throw new IllegalArgumentException("app.openai.timeout-ms must be positive, got " + timeoutMs);
+        }
+        Duration timeout = Duration.ofMillis(timeoutMs);
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
+                HttpClient.newBuilder().connectTimeout(timeout).build());
+        factory.setReadTimeout(timeout);
+        return factory;
     }
 
     public boolean isEnabled() {
@@ -137,6 +165,11 @@ public class OpenAiService {
             return content.trim();
         } catch (AiCallException e) {
             throw e;
+        } catch (ResourceAccessException e) {
+            // A timeout is the case this config exists for, so say so plainly
+            // instead of surfacing a generic transport failure.
+            throw new AiCallException("OpenAI did not respond within " + timeoutMs
+                    + "ms: " + e.getMessage(), e);
         } catch (Exception e) {
             throw new AiCallException("Failed to reach OpenAI: " + e.getMessage(), e);
         }
