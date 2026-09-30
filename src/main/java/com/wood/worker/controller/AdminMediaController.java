@@ -39,7 +39,10 @@ public class AdminMediaController {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
-        MediaAsset asset = storage.store(file, Math.toIntExact(media.count()));
+        MediaAsset asset = storage.store(file);
+        // The file is on disk before the row exists, so anything that unwinds this
+        // transaction must take the file with it.
+        storage.deleteOnRollback(asset);
         return ResponseEntity.status(HttpStatus.CREATED).body(MediaAssetDto.from(media.save(asset)));
     }
 
@@ -59,8 +62,14 @@ public class AdminMediaController {
                     if (usage.isInUse(id)) {
                         return ResponseEntity.status(HttpStatus.CONFLICT).<Void>build();
                     }
-                    storage.delete(asset);
+                    // Row first, then files. Flushing here means the foreign key is
+                    // checked before anything is removed from disk: a reference
+                    // committed after the usage check above fails the delete and leaves
+                    // the files intact. If the file delete then fails, the exception
+                    // rolls the row back and its files are still there to match.
                     media.delete(asset);
+                    media.flush();
+                    storage.delete(asset);
                     return ResponseEntity.noContent().<Void>build();
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
