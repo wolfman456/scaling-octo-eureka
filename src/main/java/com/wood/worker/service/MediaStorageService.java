@@ -1,8 +1,12 @@
 package com.wood.worker.service;
 
 import com.wood.worker.model.MediaAsset;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -16,6 +20,8 @@ import java.util.UUID;
 
 @Service
 public class MediaStorageService {
+
+    private static final Logger log = LoggerFactory.getLogger(MediaStorageService.class);
 
     private final Path uploadDir;
     private final Path originalDir;
@@ -35,6 +41,15 @@ public class MediaStorageService {
         if (!Files.isWritable(this.uploadDir)) {
             throw new IllegalStateException("Upload directory is not writable: " + this.uploadDir);
         }
+    }
+
+    /**
+     * Stores a library asset. Library assets carry no sort order — the library is
+     * listed newest-first by upload time — so callers cannot accidentally derive one
+     * from a row count.
+     */
+    public MediaAsset store(MultipartFile file) {
+        return store(file, 0);
     }
 
     public MediaAsset store(MultipartFile file, int sortOrder) {
@@ -98,6 +113,45 @@ public class MediaStorageService {
     }
 
     /**
+     * Best-effort cleanup for a file whose database row was never written (a failed
+     * save, a rolled-back transaction). Never throws: it runs while another failure
+     * is already propagating, and masking that failure with a cleanup error would
+     * hide the real cause.
+     */
+    public void deleteAfterFailedSave(MediaAsset asset) {
+        try {
+            delete(asset);
+        } catch (RuntimeException e) {
+            log.warn("Could not clean up files for unstored upload '{}': {}",
+                    asset.getStoredName(), e.getMessage());
+        }
+    }
+
+    /**
+     * Removes the stored files if the surrounding transaction rolls back. Call this
+     * right after {@link #store}, before saving the row.
+     *
+     * <p>A try/catch around the save is not enough: the file is written first, so any
+     * failure <em>after</em> the row was saved — the gallery item save, a constraint
+     * found at flush, even serialising the response — discards the row and leaves the
+     * file as an orphan that nothing references and nothing can delete. Rollback is
+     * the one moment both halves are known to be unwound, so cleanup hangs off it.
+     */
+    public void deleteOnRollback(MediaAsset asset) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) {
+                    deleteAfterFailedSave(asset);
+                }
+            }
+        });
+    }
+
+    /**
      * Grid-sized companion file name for a stored asset, e.g. {@code abc.jpg} →
      * {@code abc_thumb.jpg}. Lives beside the display copy so it is served the same way.
      */
@@ -123,10 +177,16 @@ public class MediaStorageService {
         }
     }
 
-    private static void deleteIfExists(Path path) {
+    /**
+     * Deletes a stored file, or fails loudly. A file that cannot be removed must stop
+     * the database row from being deleted too — otherwise the library keeps a row
+     * pointing at a file that is still on disk, and the storage quietly grows.
+     */
+    private void deleteIfExists(Path path) {
         try {
             Files.deleteIfExists(path);
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to delete stored file " + path, e);
         }
     }
 
