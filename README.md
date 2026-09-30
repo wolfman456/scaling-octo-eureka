@@ -41,6 +41,7 @@ proxies `/api` and `/uploads` here.
 | `PORT` | `8080` | HTTP port |
 | `APP_ORIGINALS_DIR` | `./originals` | Full-resolution originals, never served |
 | `PGHOST` `PGPORT` `PGUSER` `PGPASSWORD` `PGDATABASE` | — | Production Postgres (profile `production`) |
+| `APP_CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated allowed origins; **required in production** |
 
 The admin credential is seeded **once**, on an empty database, and then lives in
 the DB. Change it from the admin console's Account tab, or
@@ -74,6 +75,13 @@ content-addressed.
 separate nginx service that serves the frontend bundle and proxies `/api` and
 `/uploads`. See [`docs/DESIGN.md`](docs/DESIGN.md) for the layout, the
 production config, and the outstanding volume-attachment risk.
+
+In the `production` profile the service **refuses to boot** if the H2 console is
+enabled, the datasource is not PostgreSQL, or `APP_CORS_ALLOWED_ORIGINS` is
+empty or loopback-only — a misconfigured deploy fails immediately with the list
+of problems instead of coming up half-open. Before the first production deploy
+of this version, confirm `APP_CORS_ALLOWED_ORIGINS` is set on the Railway API
+service.
 
 ## CI
 
