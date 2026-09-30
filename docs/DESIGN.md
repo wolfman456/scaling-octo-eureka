@@ -145,8 +145,11 @@ and does two things, both in `AdminUserService`:
   `ADMIN_RESET_PASSWORD` is set it overwrites the stored hash on **every** boot
   and logs a WARN telling the operator to unset it. Unset (or blank) it and the
   call is a no-op, so a forgotten variable cannot re-apply a stale password on
-  a later deploy. If the variable is set but no admin exists, the boot fails
-  with instructions rather than silently doing nothing.
+  a later deploy. The lookup is by `ADMIN_USER`, so **a reset with `ADMIN_USER`
+  unset fails the boot** — it defaults to `admin`, and an `IllegalStateException`
+  from this `ApplicationRunner` takes the service down rather than silently
+  doing nothing. Set `ADMIN_USER` to the stored username in the same change as
+  `ADMIN_RESET_PASSWORD`.
 
 Every write to `admin_user.password_hash` is logged: the seed, an env-driven
 reset, and a change through `POST /api/admin/change-password` (which enforces
