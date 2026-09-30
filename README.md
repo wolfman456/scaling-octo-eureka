@@ -44,6 +44,9 @@ proxies `/api` and `/uploads` here.
 | `APP_ORIGINALS_DIR` | `./originals` | Full-resolution originals, never served |
 | `PGHOST` `PGPORT` `PGUSER` `PGPASSWORD` `PGDATABASE` | — | Production Postgres (profile `production`) |
 | `APP_CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated allowed origins; **required in production** |
+| `ADMIN_MAX_LOGIN_ATTEMPTS` | `5` | Failed admin logins before the key is refused with 429 |
+| `ADMIN_LOGIN_ATTEMPT_WINDOW` | `PT15M` | Window those failures must fall inside |
+| `ADMIN_LOGIN_LOCKOUT` | `PT15M` | How long a locked key stays refused |
 
 There is **no committed default credential.** The admin account is seeded once,
 when the database has no admin row, and lives in the DB from then on:
@@ -57,6 +60,14 @@ when the database has no admin row, and lives in the DB from then on:
 Forgotten password: set `ADMIN_RESET_PASSWORD` to a new value, redeploy, log in,
 then unset the variable. While it is set it overwrites the stored hash on every
 boot, so leaving it behind re-applies the same password on later deploys.
+
+Failed admin logins are counted per client address and per attempted username;
+once either passes `ADMIN_MAX_LOGIN_ATTEMPTS` inside the window, that key gets
+**429** with `Retry-After` for `ADMIN_LOGIN_LOCKOUT`. A successful login clears
+the count. The counters are in memory and per instance, so a restart clears
+them — which is why the lockout is time-boxed rather than permanent. Details and
+the trade-offs are in
+[`docs/DESIGN.md`](docs/DESIGN.md#admin-login-throttling).
 
 ## API surface
 
