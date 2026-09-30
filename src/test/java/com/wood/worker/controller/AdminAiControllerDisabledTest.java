@@ -22,7 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "app.upload-dir=target/test-uploads",
         "app.admin.user=admin",
-        "app.admin.password=test",
+        "app.admin.password=test-password",
         "app.openai.api-key="
 })
 @AutoConfigureMockMvc

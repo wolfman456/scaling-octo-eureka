@@ -8,7 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "app.upload-dir=target/test-uploads",
         "app.admin.user=admin",
-        "app.admin.password=test"
+        "app.admin.password=test-password"
 })
 class GalleryBackendApplicationTests {
 

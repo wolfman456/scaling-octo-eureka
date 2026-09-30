@@ -23,13 +23,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "app.upload-dir=target/test-uploads",
         "app.admin.user=admin",
-        "app.admin.password=test"
+        "app.admin.password=test-password"
 })
 @AutoConfigureMockMvc
 @Transactional
 class AdminAuthControllerTest {
 
-    private static final String CURRENT = "test";
+    private static final String CURRENT = "test-password";
     private static final String NEW = "newpass123";
 
     @Autowired

@@ -77,6 +77,30 @@ host redacted) and the effective CORS origins on every production boot, so a
 misconfigured deploy is diagnosable from the logs alone. `WebConfig` logs the
 parsed origin list in every profile.
 
+## Admin credentials
+
+There is no committed default credential. `AdminUserSeeder` runs on every boot
+and does two things, both in `AdminUserService`:
+
+- `seedIfEmpty(username, password)` — only when the database holds no admin row,
+  so a later deploy can never silently rewrite a working password. A blank
+  `ADMIN_PASSWORD` produces a random 18-byte password, logged once at WARN and
+  never stored in plaintext. A non-blank value must be 8 characters or more and
+  at most 72 UTF-8 bytes — a shorter or longer one aborts the boot rather than
+  seeding a weak or silently truncated credential (BCrypt ignores everything
+  past 72 bytes, so the upper bound is measured in bytes, not characters).
+- `resetPasswordIfRequested(username, password)` — the recovery path. While
+  `ADMIN_RESET_PASSWORD` is set it overwrites the stored hash on **every** boot
+  and logs a WARN telling the operator to unset it. Unset (or blank) it and the
+  call is a no-op, so a forgotten variable cannot re-apply a stale password on
+  a later deploy. If the variable is set but no admin exists, the boot fails
+  with instructions rather than silently doing nothing.
+
+Every write to `admin_user.password_hash` is logged: the seed, an env-driven
+reset, and a change through `POST /api/admin/change-password` (which enforces
+the same 8-char/72-byte bounds and returns 400 when they are violated). Nothing
+else in the codebase writes that column.
+
 ## Image pipeline
 
 Uploads are resized on the way in by `ImageProcessingService` (Thumbnailator),
@@ -192,7 +216,7 @@ sequence; `thumbnails[i]` is `null` when that photo has no generated thumbnail.
 where `backgroundImage` resolves the stored media to `/uploads/<name>`. There is
 no background thumbnail — the site shell uses the full image as a CSS background.
 
-### Admin (HTTP Basic; seeded on first boot from `ADMIN_USER`/`ADMIN_PASSWORD`, fallbacks `bloodwolf`/`NeedToChange`, stored in the DB afterwards, role `ADMIN`)
+### Admin (HTTP Basic; seeded on an empty database from `ADMIN_USER`/`ADMIN_PASSWORD`, stored in the DB afterwards, role `ADMIN`)
 
 - Media library
   - `GET /api/admin/media` → list (newest first)
@@ -213,7 +237,7 @@ no background thumbnail — the site shell uses the full image as a CSS backgrou
   - `GET /api/admin/settings` → current settings
   - `PUT /api/admin/settings` JSON → merges only non-null fields; empty string clears the key
 - Account
-  - `POST /api/admin/change-password` JSON: currentPassword, newPassword (min 8 chars) → 200 `{ username }`; 400 if the current password is wrong or the new one is too short. The new password takes effect on the next request.
+  - `POST /api/admin/change-password` JSON: currentPassword, newPassword (min 8 chars, max 72 UTF-8 bytes) → 200 `{ username }`; 400 if the current password is wrong or the new one is out of bounds. The new password takes effect on the next request.
 - AI (optional — see below)
   - `POST /api/admin/ai/describe-image` multipart `file` (image content types only) → `{ description }`
   - `POST /api/admin/ai/draft-article` JSON `{ topic, mediaIds[] }` → `{ title, bodyMd }`; the referenced library photos are passed to the model as grounding context
@@ -316,6 +340,9 @@ service instead.
 ## Config reference
 
 - Multipart cap ~20MB per image, ~25MB request.
+- Admin credentials come from `ADMIN_USER` (default `admin`) and `ADMIN_PASSWORD`
+  (no default — unset means a generated password logged once); see *Admin
+  credentials*. `ADMIN_RESET_PASSWORD` is the opt-in recovery path.
 - CORS allows `http://localhost:5173` (dev frontend). Production **must** set
   `APP_CORS_ALLOWED_ORIGINS` to the deployed frontend origin — a loopback-only
   or empty value now aborts the production boot

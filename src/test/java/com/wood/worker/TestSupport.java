@@ -6,7 +6,7 @@ import java.util.Base64;
 public final class TestSupport {
 
     public static final String ADMIN_USER = "admin";
-    public static final String ADMIN_PASSWORD = "test";
+    public static final String ADMIN_PASSWORD = "test-password";
 
     public static final byte[] PNG_BYTES = "fake-png-content".getBytes(StandardCharsets.UTF_8);
 
