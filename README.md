@@ -99,6 +99,37 @@ of problems instead of coming up half-open. Before the first production deploy
 of this version, confirm `APP_CORS_ALLOWED_ORIGINS` is set on the Railway API
 service.
 
+### Required Railway variables (API service)
+
+| Variable | Example |
+|---|---|
+| `SPRING_PROFILES_ACTIVE` | `production` |
+| `APP_UPLOAD_DIR` | `/app/data/uploads` |
+| `APP_ORIGINALS_DIR` | `/app/data/originals` |
+| `APP_CORS_ALLOWED_ORIGINS` | `https://<web-service>.up.railway.app` |
+| `PGHOST` `PGPORT` `PGDATABASE` `PGUSER` `PGPASSWORD` | from the Postgres service |
+| `ADMIN_USER` / `ADMIN_PASSWORD` | optional; only to choose the credential on first boot |
+
+### Attach the volume, then check the deploy
+
+The uploaded photos are **not** in the image. Attach a Railway volume at
+`/app/data` to the API service, and confirm it took effect before deploying:
+
+```bash
+VOLUME_ROOT=/app/data ./scripts/deploy-check.sh
+```
+
+The script fails when the volume is missing, when `APP_UPLOAD_DIR` is not under
+it, when the profile or CORS is wrong, or when the media directories are not
+writable. This matters because a service with no volume still boots fine: the
+database keeps the `media_asset` rows and every photo silently 404s after the
+next deploy. Run it against the deployment environment, not a developer shell.
+
+A Railway volume cannot be declared in `railway.json`, so the attachment is a
+dashboard step that lives outside version control — the script is the guard, not
+the fix. Full runbook, including the nginx DNS resolver and `API_HOST`/`API_PORT`
+notes, is in [`docs/DESIGN.md`](docs/DESIGN.md#deploying-to-railway).
+
 ## CI
 
 GitHub Actions (`.github/workflows/java-ci.yml`) runs `./mvnw -B test` on every
