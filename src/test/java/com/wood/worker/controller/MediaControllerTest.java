@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.upload-dir=target/test-uploads",
         "app.original-dir=target/test-originals",
         "app.admin.user=admin",
-        "app.admin.password=test"
+        "app.admin.password=test-password"
 })
 @AutoConfigureMockMvc
 @Transactional
