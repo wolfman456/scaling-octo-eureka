@@ -1,5 +1,7 @@
 package com.wood.worker.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +18,8 @@ import java.util.List;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
+    private static final Logger log = LoggerFactory.getLogger(WebConfig.class);
+
     @Value("${app.upload-dir}")
     private String uploadDir;
 
@@ -31,7 +35,9 @@ public class WebConfig implements WebMvcConfigurer {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(parseAllowedOrigins(allowedOrigins));
+        List<String> origins = parseAllowedOrigins(allowedOrigins);
+        log.info("CORS allowed origins: {}", origins);
+        config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

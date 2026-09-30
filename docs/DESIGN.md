@@ -46,6 +46,37 @@ supplies automatically for a managed Postgres service. In dev,
 `ddl-auto=update` lets the schema evolve in place across restarts; the H2
 console is available at `/h2-console`.
 
+## Security model
+
+Two filter chains, ordered:
+
+1. `h2ConsoleSecurityFilterChain` — `@Profile("!production")`, matches
+   `/h2-console/**`, permits everything, disables CSRF (the console posts).
+   Outside production only, so a dev database stays browsable.
+2. `securityFilterChain` — every other request. Public reads, `/uploads/**` and
+   the SPA routes are `permitAll`; `/api/admin/**` requires role `ADMIN`;
+   everything else requires authentication. **`/h2-console/**` is deliberately
+   not listed here** — in production it falls through to
+   `anyRequest().authenticated()`, so even if the console were accidentally
+   enabled it would still need credentials.
+
+### Production startup guard
+
+`ProductionConfigGuard` is an `ApplicationRunner` with `@Profile("production")`.
+On boot it refuses to start (throwing with every problem listed at once) when:
+
+- `spring.h2.console.enabled` is `true` — an unauthenticated database console;
+- `spring.datasource.url` is not a `jdbc:postgresql:` URL — an embedded
+  database starts empty on every deploy;
+- `app.cors.allowed-origins` is empty, or lists only loopback origins
+  (`localhost`, `127.0.0.1`, `0.0.0.0`, `::1`) — the admin UI would otherwise
+  fail with opaque 403s.
+
+It also logs the H2-console flag, the datasource (scheme only, credentials and
+host redacted) and the effective CORS origins on every production boot, so a
+misconfigured deploy is diagnosable from the logs alone. `WebConfig` logs the
+parsed origin list in every profile.
+
 ## Image pipeline
 
 Uploads are resized on the way in by `ImageProcessingService` (Thumbnailator),
@@ -285,8 +316,14 @@ service instead.
 ## Config reference
 
 - Multipart cap ~20MB per image, ~25MB request.
-- CORS allows `http://localhost:5173` (dev frontend).
-- H2 console enabled at `/h2-console` (disabled in production).
+- CORS allows `http://localhost:5173` (dev frontend). Production **must** set
+  `APP_CORS_ALLOWED_ORIGINS` to the deployed frontend origin — a loopback-only
+  or empty value now aborts the production boot
+  (`ProductionConfigGuard`).
+- H2 console enabled at `/h2-console` outside production only; in production it
+  is disabled by config *and* unreachable without authentication.
+- `APP_UPLOAD_DIR` / `APP_ORIGINALS_DIR` must be on a persistent volume; the
+  service checks at boot that the upload directory is creatable and writable.
 
 ## Gotchas
 
@@ -298,6 +335,8 @@ service instead.
 - With `spring.jpa.open-in-view=false`, request handlers that touch lazy
   `media` / `category` / `featuredMedia` collections must be `@Transactional`.
 - Always run `./mvnw`, not the system Maven (3.6.3 is too old for this build).
+- A second `SecurityFilterChain` bean needs an explicit `@Order`; without it the
+  two chains race and the H2 console chain can shadow the API chain.
 
 ## Known decisions
 
@@ -307,6 +346,9 @@ service instead.
 - Media is shared: deleting a gallery item or article never deletes library
   photos, and deleting a photo in use returns 409 rather than orphaning a
   reference.
+- Failing a production boot on a misconfigured security setting was chosen over
+  serving a wide-open service: a refused deploy is recoverable, an exposed
+  database is not.
 - Out of scope: a real admin accounts table (single seeded Basic-auth
   credential), video hosting (`asset_type` is `IMAGE | VIDEO` but large-video
   handling is unresolved), and any ecommerce/ordering.
