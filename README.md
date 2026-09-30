@@ -57,9 +57,12 @@ when the database has no admin row, and lives in the DB from then on:
   in the startup log. Copy it out of the log, then change it from the admin
   console's Account tab or `POST /api/admin/change-password`.
 
-Forgotten password: set `ADMIN_RESET_PASSWORD` to a new value, redeploy, log in,
-then unset the variable. While it is set it overwrites the stored hash on every
-boot, so leaving it behind re-applies the same password on later deploys.
+Forgotten password: set `ADMIN_RESET_PASSWORD` to a new value **and** `ADMIN_USER`
+to the existing username, redeploy, log in, then unset both. While
+`ADMIN_RESET_PASSWORD` is set it overwrites the stored hash on every boot, so
+leaving it behind re-applies the same password on later deploys. `ADMIN_USER`
+must be set alongside it: the reset looks the user up by that name and defaults
+to `admin`, so a reset without it matches no row and fails the boot.
 
 Failed admin logins are counted per client address and per attempted username;
 once either passes `ADMIN_MAX_LOGIN_ATTEMPTS` inside the window, that key gets
