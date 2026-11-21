@@ -50,6 +50,21 @@ class ArticleControllerTest {
     }
 
     @Test
+    void previewShowsPublishedArticleAndHidesDrafts() throws Exception {
+        createArticle("{\"title\":\"Workshop Journal\",\"published\":true,\"bodyMd\":\"## Sanding tips\"}");
+        createArticle("{\"title\":\"Private Notes\",\"published\":false}");
+        String published = mockMvc.perform(get("/api/page-meta/articles/workshop-journal"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(published.contains("Workshop Journal"));
+        org.junit.jupiter.api.Assertions.assertTrue(published.contains("content=\"article\""));
+        org.junit.jupiter.api.Assertions.assertTrue(published.contains("Sanding tips"));
+        String draft = mockMvc.perform(get("/api/page-meta/articles/private-notes"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(draft.contains("noindex"));
+        org.junit.jupiter.api.Assertions.assertFalse(draft.contains("Private Notes"));
+    }
+
+    @Test
     void adminCreateRequiresAuthentication() throws Exception {
         mockMvc.perform(post("/api/admin/articles")
                         .contentType(MediaType.APPLICATION_JSON)
