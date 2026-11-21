@@ -3,6 +3,7 @@ package com.wood.worker.controller;
 import com.wood.worker.model.MediaAsset;
 import com.wood.worker.repository.MediaAssetRepository;
 import com.wood.worker.service.MediaStorageService;
+import com.wood.worker.service.MediaDeletionService;
 import com.wood.worker.service.MediaUsageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,13 +27,15 @@ class AdminMediaControllerTest {
     private MediaStorageService storage;
     private MediaUsageService usage;
     private AdminMediaController controller;
+    private MediaDeletionService deletion;
 
     @BeforeEach
     void setUp() {
         media = Mockito.mock(MediaAssetRepository.class);
         storage = Mockito.mock(MediaStorageService.class);
         usage = Mockito.mock(MediaUsageService.class);
-        controller = new AdminMediaController(media, storage, usage);
+        deletion = Mockito.mock(MediaDeletionService.class);
+        controller = new AdminMediaController(media, storage, usage, deletion);
     }
 
     @Test
@@ -71,30 +74,17 @@ class AdminMediaControllerTest {
     }
 
     @Test
-    void deleteKeepsTheRowWhenTheFileCannotBeRemoved() {
-        MediaAsset asset = asset();
-        Mockito.when(media.findById(1L)).thenReturn(Optional.of(asset));
-        Mockito.doThrow(new IllegalStateException("Failed to delete stored file"))
-                .when(storage).delete(asset);
-
-        // The real transaction rolls the delete back here, restoring the row with
-        // its files still on disk.
-        assertThrows(IllegalStateException.class, () -> controller.delete(1L));
-    }
-
-    @Test
-    void deleteRemovesTheRowAndFlushesBeforeTouchingFiles() {
+    void deleteRemovesTheRowAndFlushesBeforeQueueingFileCleanup() {
         MediaAsset asset = asset();
         Mockito.when(media.findById(1L)).thenReturn(Optional.of(asset));
 
         var response = controller.delete(1L);
 
         assertEquals(204, response.getStatusCode().value());
-        var order = Mockito.inOrder(media, storage);
+        var order = Mockito.inOrder(media, deletion);
         order.verify(media).delete(asset);
         order.verify(media).flush();
-        // Only once the foreign key has been checked is it safe to unlink the file.
-        order.verify(storage).delete(asset);
+        order.verify(deletion).enqueue(asset);
     }
 
     @Test

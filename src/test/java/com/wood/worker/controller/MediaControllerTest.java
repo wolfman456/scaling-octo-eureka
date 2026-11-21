@@ -42,6 +42,9 @@ class MediaControllerTest {
     private MockMvc mockMvc;
 
     @Autowired
+    private com.wood.worker.service.MediaDeletionService deletion;
+
+    @Autowired
     private tools.jackson.databind.ObjectMapper objectMapper;
 
     private MockMultipartFile png() {
@@ -102,7 +105,7 @@ class MediaControllerTest {
     }
 
     @Test
-    void deleteUnusedAssetRemovesItAndItsFile() throws Exception {
+    void deletingUnusedAssetQueuesItsFileForCleanupAfterCommit() throws Exception {
         JsonNode uploaded = uploadPhoto();
         String storedName = Path.of(uploaded.get("url").asText()).getFileName().toString();
         assertTrue(Files.exists(Path.of("target/test-uploads", storedName)));
@@ -111,6 +114,10 @@ class MediaControllerTest {
                         .header(HttpHeaders.AUTHORIZATION, TestSupport.basicAuth()))
                 .andExpect(status().isNoContent());
 
+        assertTrue(Files.exists(Path.of("target/test-uploads", storedName)));
+        org.springframework.test.context.transaction.TestTransaction.flagForCommit();
+        org.springframework.test.context.transaction.TestTransaction.end();
+        deletion.removePendingFiles();
         assertFalse(Files.exists(Path.of("target/test-uploads", storedName)));
     }
 

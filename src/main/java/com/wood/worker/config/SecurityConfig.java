@@ -53,7 +53,7 @@ public class SecurityConfig {
                                 "/api/gallery", "/api/gallery/**",
                                 "/api/categories", "/api/categories/**",
                                 "/api/articles", "/api/articles/**",
-                                "/api/settings",
+                                "/api/settings", "/api/page-meta/**",
                                 "/articles", "/articles/**",
                                 "/contact", "/admin",
                                 "/uploads/**").permitAll()

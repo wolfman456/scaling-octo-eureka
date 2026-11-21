@@ -47,9 +47,13 @@ if [[ "${SPRING_PROFILES_ACTIVE:-}" != "production" ]]; then
 fi
 
 upload_dir="${APP_UPLOAD_DIR:-}"
-if [[ -n "$upload_dir" && "$upload_dir" != "$VOLUME_ROOT"/* ]]; then
-  fail "APP_UPLOAD_DIR must sit under the volume mount $VOLUME_ROOT (got '$upload_dir')"
-fi
+originals_dir="${APP_ORIGINALS_DIR:-${VOLUME_ROOT}/originals}"
+volume_path=$(realpath -m -- "$VOLUME_ROOT")
+for dir in "$upload_dir" "$originals_dir"; do
+  if [[ -z "$dir" ]] || [[ "$(realpath -m -- "$dir")" != "$volume_path"/* ]]; then
+    fail "media directory must resolve under $volume_path (got '$dir')"
+  fi
+done
 
 origins="${APP_CORS_ALLOWED_ORIGINS:-}"
 if [[ "$origins" == *localhost* || "$origins" == *127.0.0.1* ]]; then
@@ -60,6 +64,8 @@ if [[ -z "$RAILWAY_VOLUME_MOUNT_PATH" ]]; then
   fail "no volume is attached to this service: RAILWAY_VOLUME_MOUNT_PATH is unset, so uploads are ephemeral"
 elif [[ "$RAILWAY_VOLUME_MOUNT_PATH" != "$VOLUME_ROOT" ]]; then
   fail "volume is mounted at '$RAILWAY_VOLUME_MOUNT_PATH' but APP_UPLOAD_DIR expects '$VOLUME_ROOT'"
+elif ! awk -v root="$volume_path" '$5 == root { found = 1 } END { exit !found }' /proc/self/mountinfo; then
+  fail "no mounted filesystem found at '$volume_path'"
 fi
 
 if [[ $failures -gt 0 ]]; then
@@ -67,7 +73,7 @@ if [[ $failures -gt 0 ]]; then
   exit 1
 fi
 
-for dir in "$upload_dir" "${APP_ORIGINALS_DIR:-${VOLUME_ROOT}/originals}"; do
+for dir in "$upload_dir" "$originals_dir"; do
   mkdir -p "$dir"
   if [[ ! -w "$dir" ]]; then
     fail "not writable: $dir"

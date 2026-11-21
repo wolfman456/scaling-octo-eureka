@@ -82,6 +82,56 @@ public class GalleryCrudTest {
     }
 
     @Test
+    void previewShowsPublishedPieceWithEscapedMetadataAndAbsoluteCover() throws Exception {
+        JsonNode photo = uploadPhoto();
+        long id = createItem(Map.of("title", "Oak & <Maple>", "published", true,
+                "description", "Handmade \"solid wood\".",
+                "mediaIds", java.util.List.of(photo.get("id").asLong()))).get("id").asLong();
+        String html = mockMvc.perform(get("/api/page-meta/gallery/" + id)
+                        .param("utm_source", "social"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("Oak &amp; &lt;Maple&gt;"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("Handmade &quot;solid wood&quot;."));
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("https://6kidscrafts.com/gallery/" + id));
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("https://6kidscrafts.com" + photo.get("url").asText()));
+        org.junit.jupiter.api.Assertions.assertFalse(html.contains("utm_source"));
+    }
+
+    @Test
+    void previewUsesTheSiteImageAndSummaryWhenThePieceHasNeither() throws Exception {
+        long id = createItem(Map.of("title", "Oak shelf", "published", true)).get("id").asLong();
+        String html = mockMvc.perform(get("/api/page-meta/gallery/" + id))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("Handcrafted woodworking by Six Kids Crafts."));
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("https://6kidscrafts.com/apple-touch-icon.png"));
+    }
+
+    @Test
+    void previewSkipsVideoAndTruncatesLongDescriptions() throws Exception {
+        MvcResult upload = mockMvc.perform(multipart("/api/admin/media")
+                        .file(new MockMultipartFile("file", "piece.mp4", "video/mp4", new byte[]{1}))
+                        .header(HttpHeaders.AUTHORIZATION, TestSupport.basicAuth()))
+                .andExpect(status().isCreated()).andReturn();
+        long clip = objectMapper.readTree(upload.getResponse().getContentAsString()).get("id").asLong();
+        long photo = uploadPhoto().get("id").asLong();
+        long id = createItem(Map.of("title", "Oak shelf", "published", true,
+                "description", "x".repeat(161), "mediaIds", java.util.List.of(clip, photo))).get("id").asLong();
+        String html = mockMvc.perform(get("/api/page-meta/gallery/" + id))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("x".repeat(157) + "…"));
+        org.junit.jupiter.api.Assertions.assertFalse(html.contains(".mp4"));
+    }
+
+    @Test
+    void previewHidesDraftPieces() throws Exception {
+        long id = createItem(Map.of("title", "Private Draft", "published", false)).get("id").asLong();
+        String html = mockMvc.perform(get("/api/page-meta/gallery/" + id))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("noindex"));
+        org.junit.jupiter.api.Assertions.assertFalse(html.contains("Private Draft"));
+    }
+
+    @Test
     void adminListIncludesUnpublished() throws Exception {
         createItem(Map.of("title", "Hidden", "published", false));
         createItem(Map.of("title", "Shown", "published", true));
