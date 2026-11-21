@@ -98,6 +98,9 @@ public class AdminGalleryController {
     private void apply(GalleryItem item, GalleryItemForm form) {
         item.setTitle(form.title());
         item.setDescription(form.description());
+        if (form.etsyListingUrl() != null) {
+            item.setEtsyListingUrl(form.etsyListingUrl().isEmpty() ? null : form.etsyListingUrl());
+        }
         item.setCategory(form.categoryId() == null ? null : categories.findById(form.categoryId()).orElse(null));
         item.setSortOrder(form.sortOrder());
         item.setPublished(form.published());

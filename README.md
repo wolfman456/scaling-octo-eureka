@@ -72,14 +72,6 @@ them — which is why the lockout is time-boxed rather than permanent. Details a
 the trade-offs are in
 [`docs/DESIGN.md`](docs/DESIGN.md#admin-login-throttling).
 
-Failed admin logins are counted per client address and per attempted username;
-once either passes `ADMIN_MAX_LOGIN_ATTEMPTS` inside the window, that key gets
-**429** with `Retry-After` for `ADMIN_LOGIN_LOCKOUT`. A successful login clears
-the count. The counters are in memory and per instance, so a restart clears
-them — which is why the lockout is time-boxed rather than permanent. Details and
-the trade-offs are in
-[`docs/DESIGN.md`](docs/DESIGN.md#admin-login-throttling).
-
 ## API surface
 
 Public: `GET /api/gallery`, `/api/gallery/{id}`, `/api/categories`,

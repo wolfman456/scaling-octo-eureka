@@ -30,6 +30,17 @@ public class GalleryItem {
     @Column(length = 2000)
     private String description;
 
+    @Column(name = "etsy_listing_url", length = 500)
+    private String etsyListingUrl;
+
+    public String getEtsyListingUrl() {
+        return etsyListingUrl;
+    }
+
+    public void setEtsyListingUrl(String etsyListingUrl) {
+        this.etsyListingUrl = etsyListingUrl;
+    }
+
     @ManyToOne
     @JoinColumn(name = "category_id")
     private Category category;
