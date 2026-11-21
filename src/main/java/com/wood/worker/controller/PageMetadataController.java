@@ -3,7 +3,6 @@ package com.wood.worker.controller;
 import com.wood.worker.model.MediaAsset;
 import com.wood.worker.repository.ArticleRepository;
 import com.wood.worker.repository.GalleryItemRepository;
-import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.HtmlUtils;
 
 @RestController
-@RequestMapping(value = "/api/page-meta", produces = MediaType.TEXT_HTML_VALUE)
+@RequestMapping(value = "/api/page-meta", produces = "text/html;charset=UTF-8")
 @Transactional(readOnly = true)
 public class PageMetadataController {
 
