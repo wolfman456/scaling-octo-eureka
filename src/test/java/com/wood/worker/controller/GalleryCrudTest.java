@@ -71,6 +71,17 @@ public class GalleryCrudTest {
     }
 
     @Test
+    void storesAndReturnsTheEtsyListingUrl() throws Exception {
+        String url = "https://www.etsy.com/listing/12345/oak-table";
+        JsonNode linked = createItem(Map.of("title", "Oak table", "published", true, "etsyListingUrl", url));
+        createItem(Map.of("title", "Unlinked shelf", "etsyListingUrl", ""));
+
+        mockMvc.perform(get("/api/gallery/" + linked.get("id").asLong()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.etsyListingUrl").value(url));
+    }
+
+    @Test
     void adminListIncludesUnpublished() throws Exception {
         createItem(Map.of("title", "Hidden", "published", false));
         createItem(Map.of("title", "Shown", "published", true));

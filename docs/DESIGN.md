@@ -527,3 +527,8 @@ writable directory, so no amount of write-testing detects it.
 - Out of scope: a real admin accounts table (single seeded Basic-auth
   credential), video hosting (`asset_type` is `IMAGE | VIDEO` but large-video
   handling is unresolved), and any ecommerce/ordering.
+
+
+## Etsy gallery links
+
+Gallery entries have an optional `etsyListingUrl` field in the admin request and gallery response, stored in the nullable `gallery_item.etsy_listing_url` column. Supply an HTTPS Etsy listing URL or an empty string to clear it. An omitted value preserves the existing URL.
