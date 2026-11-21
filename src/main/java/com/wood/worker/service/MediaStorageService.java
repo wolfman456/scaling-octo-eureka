@@ -106,9 +106,13 @@ public class MediaStorageService {
     }
 
     public void delete(MediaAsset asset) {
-        delete(asset.getStoredName());
-        if (asset.getThumbnailName() != null) {
-            deleteIfExists(uploadDir.resolve(asset.getThumbnailName()));
+        deleteFiles(asset.getStoredName(), asset.getThumbnailName());
+    }
+
+    void deleteFiles(String storedName, String thumbnailName) {
+        delete(storedName);
+        if (thumbnailName != null) {
+            deleteIfExists(uploadDir.resolve(thumbnailName));
         }
     }
 
@@ -177,11 +181,6 @@ public class MediaStorageService {
         }
     }
 
-    /**
-     * Deletes a stored file, or fails loudly. A file that cannot be removed must stop
-     * the database row from being deleted too — otherwise the library keeps a row
-     * pointing at a file that is still on disk, and the storage quietly grows.
-     */
     private void deleteIfExists(Path path) {
         try {
             Files.deleteIfExists(path);

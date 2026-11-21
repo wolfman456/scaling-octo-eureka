@@ -4,6 +4,7 @@ import com.wood.worker.dto.MediaAssetDto;
 import com.wood.worker.model.MediaAsset;
 import com.wood.worker.repository.MediaAssetRepository;
 import com.wood.worker.service.MediaStorageService;
+import com.wood.worker.service.MediaDeletionService;
 import com.wood.worker.service.MediaUsageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,11 +27,14 @@ public class AdminMediaController {
     private final MediaAssetRepository media;
     private final MediaStorageService storage;
     private final MediaUsageService usage;
+    private final MediaDeletionService deletion;
 
-    public AdminMediaController(MediaAssetRepository media, MediaStorageService storage, MediaUsageService usage) {
+    public AdminMediaController(MediaAssetRepository media, MediaStorageService storage,
+                                MediaUsageService usage, MediaDeletionService deletion) {
         this.media = media;
         this.storage = storage;
         this.usage = usage;
+        this.deletion = deletion;
     }
 
     @PostMapping(consumes = "multipart/form-data")
@@ -62,14 +66,9 @@ public class AdminMediaController {
                     if (usage.isInUse(id)) {
                         return ResponseEntity.status(HttpStatus.CONFLICT).<Void>build();
                     }
-                    // Row first, then files. Flushing here means the foreign key is
-                    // checked before anything is removed from disk: a reference
-                    // committed after the usage check above fails the delete and leaves
-                    // the files intact. If the file delete then fails, the exception
-                    // rolls the row back and its files are still there to match.
                     media.delete(asset);
                     media.flush();
-                    storage.delete(asset);
+                    deletion.enqueue(asset);
                     return ResponseEntity.noContent().<Void>build();
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());

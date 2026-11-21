@@ -258,13 +258,7 @@ is deliberate. Nothing here trusts the caller to clean up.
   the response — and rollback is the one moment both halves are known to be
   unwound. Cleanup itself never throws, because it runs while the original error
   is already propagating and must not replace it.
-- **Delete.** The row is deleted and **flushed** first, then the files. Flushing
-  forces the foreign keys to be checked before anything is unlinked: a reference
-  that landed after the usage check fails the delete while the files are still
-  intact. If the file delete then fails, the exception rolls the row back and its
-  files are still there to match. Deleting files first — the old behaviour — put
-  a rollback between the two and could leave a restored row pointing at a file
-  that was already gone.
+- **Delete.** The media row is deleted and flushed first so the database checks its foreign keys. The same transaction records the stored and thumbnail filenames in `pending_media_deletion`. A scheduled cleanup removes the display file, original and thumbnail after commit. A failed cleanup keeps the record for retry. Partial cleanup is safe because missing files are ignored on the next attempt.
 - **Concurrent reference.** `MediaUsageService.isInUse` is a read-then-write, so
   a reference committed in the gap would be missed by the check. The database
   foreign keys on `item_media.media_id`, `article_media.media_id` and
@@ -532,3 +526,7 @@ writable directory, so no amount of write-testing detects it.
 ## Etsy gallery links
 
 Gallery entries have an optional `etsyListingUrl` field in the admin request and gallery response, stored in the nullable `gallery_item.etsy_listing_url` column. Supply an HTTPS Etsy listing URL or an empty string to clear it. An omitted value preserves the existing URL.
+
+The production image runs the deploy check before starting Java. Both media directories must resolve inside the mounted volume, and the check verifies the mount inside the running container.
+
+The public `GET /api/page-meta/gallery/{id}` and `GET /api/page-meta/articles/{slug}` endpoints render escaped HTML metadata for nginx to include in its initial page response. Only published content supplies metadata. Missing or unpublished content returns a generic noindex fragment.

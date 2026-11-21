@@ -82,6 +82,31 @@ public class GalleryCrudTest {
     }
 
     @Test
+    void previewShowsPublishedPieceWithEscapedMetadataAndAbsoluteCover() throws Exception {
+        JsonNode photo = uploadPhoto();
+        long id = createItem(Map.of("title", "Oak & <Maple>", "published", true,
+                "description", "Handmade \"solid wood\".",
+                "mediaIds", java.util.List.of(photo.get("id").asLong()))).get("id").asLong();
+        String html = mockMvc.perform(get("/api/page-meta/gallery/" + id)
+                        .param("utm_source", "social"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("Oak &amp; &lt;Maple&gt;"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("Handmade &quot;solid wood&quot;."));
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("https://6kidscrafts.com/gallery/" + id));
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("https://6kidscrafts.com" + photo.get("url").asText()));
+        org.junit.jupiter.api.Assertions.assertFalse(html.contains("utm_source"));
+    }
+
+    @Test
+    void previewHidesDraftPieces() throws Exception {
+        long id = createItem(Map.of("title", "Private Draft", "published", false)).get("id").asLong();
+        String html = mockMvc.perform(get("/api/page-meta/gallery/" + id))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("noindex"));
+        org.junit.jupiter.api.Assertions.assertFalse(html.contains("Private Draft"));
+    }
+
+    @Test
     void adminListIncludesUnpublished() throws Exception {
         createItem(Map.of("title", "Hidden", "published", false));
         createItem(Map.of("title", "Shown", "published", true));

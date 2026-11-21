@@ -94,7 +94,7 @@ content-addressed.
 
 A failed upload never leaves a file behind that nothing references, and a
 delete is refused before anything is unlinked if the database finds a reference
-the in-use check missed. The library never advertises a photo it cannot serve.
+the in-use check missed. After a media row is deleted, a background job removes its files and retries failed cleanup.
 Ordering details are in
 [`docs/DESIGN.md`](docs/DESIGN.md#media-storage-consistency).
 
@@ -149,3 +149,5 @@ notes, is in [`docs/DESIGN.md`](docs/DESIGN.md#deploying-to-railway).
 GitHub Actions (`.github/workflows/java-ci.yml`) runs `./mvnw -B test` on every
 push to `master` and `develop` and on every PR into either — so the 90% coverage
 floor is enforced on every build.
+
+The production image runs the deploy check before starting Java. Both media directories must resolve inside the mounted volume, and the check verifies the mount inside the running container.
